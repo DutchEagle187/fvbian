@@ -2,6 +2,7 @@ import {
   Bookmark,
   CalendarDays,
   LayoutDashboard,
+  ListChecks,
   NotebookPen,
   type LucideIcon,
 } from "lucide-react";
@@ -36,6 +37,13 @@ export const tools: Tool[] = [
     description: "Deine iCloud-Kalender an einem Ort (CalDAV).",
     href: "/dashboard/tools/calendar",
     icon: CalendarDays,
+    tag: "iCloud",
+  },
+  {
+    title: "Erinnerungen",
+    description: "Deine iCloud-Erinnerungen lesen und abhaken.",
+    href: "/dashboard/tools/reminders",
+    icon: ListChecks,
     tag: "iCloud",
   },
   {

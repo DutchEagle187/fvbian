@@ -87,6 +87,8 @@ serverseitig verwendet.
 - Benötigt den Redis-Speicher (siehe oben).
 - Termine (inkl. Wiederholungen) werden serverseitig via `tsdav` geladen und
   mit `ical.js` aufgelöst.
+- **iCloud-Erinnerungen** (VTODO) laufen über denselben Zugang: lesen und
+  abhaken (Erledigt-Status wird nach iCloud zurückgeschrieben).
 
 ## Auf Vercel deployen
 

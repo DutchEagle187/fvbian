@@ -22,6 +22,19 @@ export interface CalEvent {
   color?: string;
 }
 
+export interface Reminder {
+  id: string;
+  url: string;
+  calendarUrl: string;
+  title: string;
+  notes?: string;
+  due?: string | null; // ISO
+  completed: boolean;
+  priority?: number;
+  list: string;
+  listColor?: string;
+}
+
 const redisKey = (email: string) => `u:${email.toLowerCase()}:calendar`;
 
 /* --------------------------- credential storage --------------------------- */
@@ -131,6 +144,115 @@ export async function fetchUpcomingEvents(
 
   out.sort((a, b) => a.start.localeCompare(b.start));
   return out;
+}
+
+/* ------------------------------- reminders -------------------------------- */
+
+export async function fetchReminders(creds: CalendarCreds): Promise<Reminder[]> {
+  const client = await makeClient(creds);
+  const calendars = await client.fetchCalendars();
+
+  // Reminder lists are CalDAV collections that support VTODO.
+  const todoLists = calendars.filter((c) => c.components?.includes("VTODO"));
+
+  const out: Reminder[] = [];
+
+  await Promise.all(
+    todoLists.map(async (list) => {
+      const name =
+        typeof list.displayName === "string" ? list.displayName : "Liste";
+      const color =
+        typeof list.calendarColor === "string" ? list.calendarColor : undefined;
+      let objects;
+      try {
+        objects = await client.fetchCalendarObjects({ calendar: list });
+      } catch {
+        return;
+      }
+      for (const obj of objects) {
+        if (!obj.data) continue;
+        try {
+          const comp = new ICAL.Component(ICAL.parse(obj.data));
+          for (const vtodo of comp.getAllSubcomponents("vtodo")) {
+            const status = vtodo.getFirstPropertyValue("status");
+            const percent = vtodo.getFirstPropertyValue("percent-complete");
+            const completed =
+              status === "COMPLETED" ||
+              vtodo.hasProperty("completed") ||
+              Number(percent) === 100;
+
+            const dueProp = vtodo.getFirstProperty("due");
+            let due: string | null = null;
+            if (dueProp) {
+              const val = dueProp.getFirstValue();
+              if (val instanceof ICAL.Time) due = val.toJSDate().toISOString();
+            }
+
+            const title = vtodo.getFirstPropertyValue("summary");
+            const notes = vtodo.getFirstPropertyValue("description");
+            const priority = vtodo.getFirstPropertyValue("priority");
+            const uid = vtodo.getFirstPropertyValue("uid");
+
+            out.push({
+              id: typeof uid === "string" ? uid : obj.url,
+              url: obj.url,
+              calendarUrl: list.url,
+              title: typeof title === "string" ? title : "(ohne Titel)",
+              notes: typeof notes === "string" ? notes : undefined,
+              due,
+              completed,
+              priority: typeof priority === "number" ? priority : undefined,
+              list: name,
+              listColor: color,
+            });
+          }
+        } catch {
+          // skip unparseable todo
+        }
+      }
+    })
+  );
+
+  return out;
+}
+
+export async function toggleReminder(
+  creds: CalendarCreds,
+  target: { url: string; calendarUrl: string },
+  done: boolean
+): Promise<void> {
+  const client = await makeClient(creds);
+
+  // Re-fetch the object to get fresh data + etag (avoids stale-etag conflicts).
+  const objects = await client.fetchCalendarObjects({
+    calendar: { url: target.calendarUrl } as Parameters<
+      typeof client.fetchCalendarObjects
+    >[0]["calendar"],
+    objectUrls: [target.url],
+  });
+  const obj = objects[0];
+  if (!obj?.data) throw new Error("Erinnerung nicht gefunden.");
+
+  const comp = new ICAL.Component(ICAL.parse(obj.data));
+  const vtodo = comp.getFirstSubcomponent("vtodo");
+  if (!vtodo) throw new Error("Kein VTODO im Objekt.");
+
+  if (done) {
+    vtodo.updatePropertyWithValue("status", "COMPLETED");
+    vtodo.updatePropertyWithValue("percent-complete", 100);
+    vtodo.updatePropertyWithValue(
+      "completed",
+      ICAL.Time.fromJSDate(new Date(), true)
+    );
+  } else {
+    vtodo.updatePropertyWithValue("status", "NEEDS-ACTION");
+    vtodo.removeAllProperties("completed");
+    vtodo.removeAllProperties("percent-complete");
+  }
+
+  await client.updateCalendarObject({
+    calendarObject: { url: obj.url, data: comp.toString(), etag: obj.etag },
+  });
 }
 
 /* ---------------------------- iCalendar parsing --------------------------- */
