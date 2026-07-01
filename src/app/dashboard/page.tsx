@@ -1,16 +1,11 @@
 import Link from "next/link";
-import { ArrowRight } from "lucide-react";
 
 import { auth } from "@/auth";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { BlurFade } from "@/components/magicui/blur-fade";
+import { ClockWidget } from "@/components/dashboard/widgets/clock-widget";
+import { WeatherWidget } from "@/components/dashboard/widgets/weather-widget";
+import { TodosWidget } from "@/components/dashboard/widgets/todos-widget";
+import { BookmarksWidget } from "@/components/dashboard/widgets/bookmarks-widget";
 import { tools } from "@/lib/tools";
 
 export default async function DashboardPage() {
@@ -19,47 +14,43 @@ export default async function DashboardPage() {
 
   return (
     <div className="space-y-8">
-      <BlurFade inView>
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight">
-            Hallo{firstName ? `, ${firstName}` : ""} 👋
-          </h1>
-          <p className="mt-1 text-muted-foreground">
-            Willkommen in deiner persönlichen Werkzeugkiste.
-          </p>
-        </div>
-      </BlurFade>
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+        <BlurFade className="lg:col-span-2" inView>
+          <ClockWidget name={firstName} />
+        </BlurFade>
+        <BlurFade delay={0.1} inView>
+          <WeatherWidget />
+        </BlurFade>
+        <BlurFade delay={0.2} inView>
+          <TodosWidget />
+        </BlurFade>
+        <BlurFade className="lg:col-span-2" delay={0.3} inView>
+          <BookmarksWidget />
+        </BlurFade>
+      </div>
 
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        {tools.map((tool, i) => {
-          const Icon = tool.icon;
-          return (
-            <BlurFade key={tool.href} delay={0.05 * (i + 1)} inView>
-              <Link href={tool.href} className="group block h-full">
-                <Card className="h-full transition-all group-hover:border-foreground/20 group-hover:shadow-md">
-                  <CardHeader>
-                    <div className="mb-2 flex items-center justify-between">
-                      <div className="flex size-10 items-center justify-center rounded-lg bg-accent">
-                        <Icon className="size-5" />
-                      </div>
-                      {tool.tag ? (
-                        <Badge variant="secondary">{tool.tag}</Badge>
-                      ) : null}
-                    </div>
-                    <CardTitle>{tool.title}</CardTitle>
-                    <CardDescription>{tool.description}</CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <span className="inline-flex items-center gap-1 text-sm font-medium text-muted-foreground transition-colors group-hover:text-foreground">
-                      Öffnen
-                      <ArrowRight className="size-4 transition-transform group-hover:translate-x-0.5" />
-                    </span>
-                  </CardContent>
-                </Card>
-              </Link>
-            </BlurFade>
-          );
-        })}
+      <div>
+        <BlurFade delay={0.4} inView>
+          <h2 className="mb-3 text-sm font-medium text-muted-foreground">
+            Schnellzugriff
+          </h2>
+        </BlurFade>
+        <div className="flex flex-wrap gap-2">
+          {tools.map((tool, i) => {
+            const Icon = tool.icon;
+            return (
+              <BlurFade key={tool.href} delay={0.45 + i * 0.05} inView>
+                <Link
+                  href={tool.href}
+                  className="flex items-center gap-2 rounded-lg border bg-card px-3 py-2 text-sm font-medium transition-colors hover:bg-accent"
+                >
+                  <Icon className="size-4 text-muted-foreground" />
+                  {tool.title}
+                </Link>
+              </BlurFade>
+            );
+          })}
+        </div>
       </div>
     </div>
   );
