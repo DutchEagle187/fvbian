@@ -156,6 +156,9 @@ export async function fetchUpcomingEvents(
             start: windowStart.toISOString(),
             end: windowEnd.toISOString(),
           },
+          // Let iCloud expand recurring events into concrete instances within
+          // the window — far more reliable than client-side rule iteration.
+          expand: true,
         });
       } catch {
         return;
@@ -163,7 +166,7 @@ export async function fetchUpcomingEvents(
       for (const obj of objects) {
         if (!obj.data) continue;
         try {
-          expandInto(
+          parseEventsInto(
             obj.data,
             {
               calendar: name,
@@ -206,7 +209,21 @@ export async function fetchReminders(creds: CalendarCreds): Promise<Reminder[]> 
         typeof list.calendarColor === "string" ? list.calendarColor : undefined;
       let objects;
       try {
-        objects = await client.fetchCalendarObjects({ calendar: list });
+        objects = await client.fetchCalendarObjects({
+          calendar: list,
+          // tsdav's default filter targets VEVENT; reminders are VTODO, so we
+          // must ask for VTODO explicitly or nothing comes back.
+          filters: [
+            {
+              "comp-filter": {
+                _attributes: { name: "VCALENDAR" },
+                "comp-filter": { _attributes: { name: "VTODO" } },
+              },
+            },
+          ] as Parameters<
+            typeof client.fetchCalendarObjects
+          >[0]["filters"],
+        });
       } catch {
         return;
       }
@@ -548,6 +565,49 @@ function toCalEvent(
   };
 }
 
+// Parses server-expanded event data: each VEVENT is already a concrete
+// instance. Falls back to client-side expansion if a VEVENT still carries an
+// RRULE (i.e. the server didn't expand it).
+function parseEventsInto(
+  data: string,
+  meta: ObjMeta,
+  windowStart: Date,
+  windowEnd: Date,
+  out: CalEvent[]
+) {
+  const comp = new ICAL.Component(ICAL.parse(data));
+  const vevents = comp.getAllSubcomponents("vevent");
+  if (vevents.length === 0) return;
+
+  const notExpanded = vevents.some(
+    (v) => v.hasProperty("rrule") || v.hasProperty("rdate")
+  );
+  if (notExpanded) {
+    expandInto(data, meta, windowStart, windowEnd, out);
+    return;
+  }
+
+  for (const ve of vevents) {
+    const event = new ICAL.Event(ve);
+    const s = event.startDate?.toJSDate();
+    const e = event.endDate?.toJSDate();
+    if (!s || !e) continue;
+    if (e < windowStart || s > windowEnd) continue;
+    const isInstance = ve.hasProperty("recurrence-id");
+    out.push(
+      toCalEvent(
+        event,
+        s,
+        e,
+        event.startDate.isDate,
+        meta,
+        `${event.uid}-${s.getTime()}`,
+        isInstance
+      )
+    );
+  }
+}
+
 function expandInto(
   data: string,
   meta: ObjMeta,
@@ -579,7 +639,7 @@ function expandInto(
       const iterator = event.iterator();
       let next = iterator.next();
       let guard = 0;
-      while (next && guard < 2000) {
+      while (next && guard < 20000) {
         guard++;
         if (next.toJSDate() > windowEnd) break;
         try {
