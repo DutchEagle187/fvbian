@@ -14,6 +14,7 @@ import {
 
 import { PageHeader } from "@/components/dashboard/page-header";
 import { EventDialog } from "@/components/dashboard/event-dialog";
+import { DayView } from "@/components/dashboard/day-view";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -189,51 +190,108 @@ function ConnectForm({ onConnected }: { onConnected: () => void }) {
 }
 
 function Agenda({ onDisconnected }: { onDisconnected: () => void }) {
+  const [view, setView] = React.useState<"agenda" | "day">("agenda");
   const [days, setDays] = React.useState(14);
-  const { events, loading, error, reload, createEvent, updateEvent, deleteEvent } =
-    useCalendarEvents(days);
+  const [day, setDay] = React.useState(() => {
+    const d = new Date();
+    d.setHours(0, 0, 0, 0);
+    return d;
+  });
+
+  const dayEnd = React.useMemo(() => {
+    const e = new Date(day);
+    e.setDate(e.getDate() + 1);
+    return e;
+  }, [day]);
+
+  const range = view === "day" ? { start: day, end: dayEnd } : days;
+  const {
+    events,
+    loading,
+    error,
+    reload,
+    createEvent,
+    updateEvent,
+    deleteEvent,
+  } = useCalendarEvents(range);
   const { eventCalendars } = useCollections();
   const grouped = groupByDay(events);
 
   const [dialogOpen, setDialogOpen] = React.useState(false);
   const [editing, setEditing] = React.useState<CalEvent | undefined>();
+  const [defaultStart, setDefaultStart] = React.useState<Date | undefined>();
 
   async function disconnect() {
     await fetch("/api/calendar", { method: "DELETE" });
     onDisconnected();
   }
 
-  function openCreate() {
+  function openCreate(at?: Date) {
     setEditing(undefined);
+    setDefaultStart(at);
     setDialogOpen(true);
   }
   function openEdit(ev: CalEvent) {
     setEditing(ev);
+    setDefaultStart(undefined);
     setDialogOpen(true);
+  }
+  function shiftDay(delta: number) {
+    setDay((d) => {
+      const n = new Date(d);
+      n.setDate(n.getDate() + delta);
+      return n;
+    });
   }
 
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="flex gap-1">
-          {DAY_OPTIONS.map((d) => (
+        <div className="flex items-center gap-2">
+          <div className="flex gap-1 rounded-md border p-0.5">
             <Button
-              key={d}
               size="sm"
-              variant={days === d ? "default" : "outline"}
-              onClick={() => setDays(d)}
+              variant={view === "day" ? "default" : "ghost"}
+              className="h-7"
+              onClick={() => setView("day")}
             >
-              {d} Tage
+              Tag
             </Button>
-          ))}
+            <Button
+              size="sm"
+              variant={view === "agenda" ? "default" : "ghost"}
+              className="h-7"
+              onClick={() => setView("agenda")}
+            >
+              Agenda
+            </Button>
+          </div>
+          {view === "agenda" && (
+            <div className="flex gap-1">
+              {DAY_OPTIONS.map((d) => (
+                <Button
+                  key={d}
+                  size="sm"
+                  variant={days === d ? "secondary" : "ghost"}
+                  onClick={() => setDays(d)}
+                >
+                  {d}T
+                </Button>
+              ))}
+            </div>
+          )}
         </div>
         <div className="flex gap-2">
-          <Button size="sm" onClick={openCreate} disabled={!eventCalendars.length}>
+          <Button
+            size="sm"
+            onClick={() => openCreate()}
+            disabled={!eventCalendars.length}
+          >
             <Plus className="size-4" /> Neuer Termin
           </Button>
           <Button size="sm" variant="ghost" onClick={reload} disabled={loading}>
             <RefreshCw className={cn("size-4", loading && "animate-spin")} />
-            Aktualisieren
+            <span className="hidden sm:inline">Aktualisieren</span>
           </Button>
           <Button size="sm" variant="ghost" onClick={disconnect}>
             Trennen
@@ -247,7 +305,21 @@ function Agenda({ onDisconnected }: { onDisconnected: () => void }) {
         </p>
       )}
 
-      {loading && events.length === 0 ? (
+      {view === "day" ? (
+        <DayView
+          date={day}
+          events={events}
+          onPrev={() => shiftDay(-1)}
+          onNext={() => shiftDay(1)}
+          onToday={() => {
+            const d = new Date();
+            d.setHours(0, 0, 0, 0);
+            setDay(d);
+          }}
+          onEventClick={openEdit}
+          onCreateAt={openCreate}
+        />
+      ) : loading && events.length === 0 ? (
         <div className="flex items-center gap-2 text-muted-foreground">
           <Loader2 className="size-4 animate-spin" /> Termine werden geladen…
         </div>
@@ -257,17 +329,19 @@ function Agenda({ onDisconnected }: { onDisconnected: () => void }) {
         </p>
       ) : (
         <div className="space-y-6">
-          {grouped.map((day) => (
-            <div key={day.key}>
+          {grouped.map((gday) => (
+            <div key={gday.key}>
               <h3 className="mb-2 flex items-center gap-2 text-sm font-semibold">
                 <CalendarDays className="size-4 text-muted-foreground" />
-                <span className={cn("capitalize", day.isToday && "text-primary")}>
-                  {day.isToday ? "Heute · " : ""}
-                  {day.label}
+                <span
+                  className={cn("capitalize", gday.isToday && "text-primary")}
+                >
+                  {gday.isToday ? "Heute · " : ""}
+                  {gday.label}
                 </span>
               </h3>
               <div className="space-y-2">
-                {day.events.map((ev) => (
+                {gday.events.map((ev) => (
                   <Card
                     key={ev.id}
                     className="cursor-pointer py-0 transition-shadow hover:shadow-md"
@@ -308,6 +382,7 @@ function Agenda({ onDisconnected }: { onDisconnected: () => void }) {
         onOpenChange={setDialogOpen}
         calendars={eventCalendars}
         initial={editing}
+        defaultStart={defaultStart}
         onSubmit={(calendarUrl, event) =>
           editing
             ? updateEvent(

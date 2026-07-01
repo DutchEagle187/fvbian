@@ -128,13 +128,20 @@ export async function fetchUpcomingEvents(
   creds: CalendarCreds,
   days = 14
 ): Promise<CalEvent[]> {
-  const client = await makeClient(creds);
-  const calendars = await client.fetchCalendars();
-
   const windowStart = new Date();
   windowStart.setHours(0, 0, 0, 0);
   const windowEnd = new Date(windowStart);
   windowEnd.setDate(windowEnd.getDate() + days);
+  return fetchEvents(creds, windowStart, windowEnd);
+}
+
+export async function fetchEvents(
+  creds: CalendarCreds,
+  windowStart: Date,
+  windowEnd: Date
+): Promise<CalEvent[]> {
+  const client = await makeClient(creds);
+  const calendars = await client.fetchCalendars();
 
   const eventCalendars = calendars.filter(
     (c) => !c.components?.length || c.components.includes("VEVENT")

@@ -12,7 +12,14 @@ interface EventsResponse {
   error?: string;
 }
 
-export function useCalendarEvents(days: number) {
+export type EventsRange = number | { start: Date; end: Date };
+
+export function useCalendarEvents(range: EventsRange) {
+  const query =
+    typeof range === "number"
+      ? `days=${range}`
+      : `start=${range.start.toISOString()}&end=${range.end.toISOString()}`;
+
   const [data, setData] = React.useState<EventsResponse>({
     connected: false,
     events: [],
@@ -21,12 +28,12 @@ export function useCalendarEvents(days: number) {
 
   const reload = React.useCallback(() => {
     setLoading(true);
-    fetch(`/api/calendar/events?days=${days}`)
+    fetch(`/api/calendar/events?${query}`)
       .then((r) => r.json())
       .then((res: EventsResponse) => setData(res))
       .catch(() => setData({ connected: false, events: [] }))
       .finally(() => setLoading(false));
-  }, [days]);
+  }, [query]);
 
   React.useEffect(() => {
     reload();

@@ -4,6 +4,7 @@ import { auth } from "@/auth";
 import {
   createEvent,
   deleteObject,
+  fetchEvents,
   fetchUpcomingEvents,
   getCreds,
   updateEvent,
@@ -46,13 +47,26 @@ export async function GET(request: Request) {
     return NextResponse.json({ connected: false, events: [] });
   }
 
-  const daysParam = Number(new URL(request.url).searchParams.get("days"));
-  const days = Number.isFinite(daysParam)
-    ? Math.min(Math.max(daysParam, 1), 60)
-    : 14;
+  const params = new URL(request.url).searchParams;
+  const startParam = params.get("start");
+  const endParam = params.get("end");
 
   try {
-    const events = await fetchUpcomingEvents(creds, days);
+    let events;
+    if (startParam && endParam) {
+      const start = new Date(startParam);
+      const end = new Date(endParam);
+      if (isNaN(start.getTime()) || isNaN(end.getTime())) {
+        return NextResponse.json({ error: "invalid range" }, { status: 400 });
+      }
+      events = await fetchEvents(creds, start, end);
+    } else {
+      const daysParam = Number(params.get("days"));
+      const days = Number.isFinite(daysParam)
+        ? Math.min(Math.max(daysParam, 1), 60)
+        : 14;
+      events = await fetchUpcomingEvents(creds, days);
+    }
     return NextResponse.json({ connected: true, events });
   } catch (e) {
     return NextResponse.json(

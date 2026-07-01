@@ -122,7 +122,7 @@ export function TaskDialog({
                 value={listId}
                 onChange={(e) => setListId(e.target.value)}
                 disabled={editing}
-                className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-xs outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:opacity-60"
+                className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm shadow-xs outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:opacity-60"
               >
                 {lists.map((l) => (
                   <option key={l.id} value={l.id}>

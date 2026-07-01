@@ -28,13 +28,16 @@ function toDateTimeInput(iso: string) {
   const d = new Date(iso);
   return `${toDateInput(iso)}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }
-function defaultStart() {
+function toLocalDT(d: Date) {
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(
+    d.getHours()
+  )}:${pad(d.getMinutes())}`;
+}
+function nextHour() {
   const d = new Date();
   d.setMinutes(0, 0, 0);
   d.setHours(d.getHours() + 1);
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(
-    d.getHours()
-  )}:00`;
+  return d;
 }
 
 export function EventDialog({
@@ -42,6 +45,7 @@ export function EventDialog({
   onOpenChange,
   calendars,
   initial,
+  defaultStart: initialStart,
   onSubmit,
   onDelete,
 }: {
@@ -49,6 +53,7 @@ export function EventDialog({
   onOpenChange: (open: boolean) => void;
   calendars: CalendarCollection[];
   initial?: CalEvent;
+  defaultStart?: Date;
   onSubmit: (calendarUrl: string, event: EventInput) => Promise<void>;
   onDelete?: () => Promise<void>;
 }) {
@@ -84,22 +89,41 @@ export function EventDialog({
       setLocation(initial.location ?? "");
       setNotes(initial.notes ?? "");
     } else {
+      const base = initialStart ?? nextHour();
       setCalendarUrl(calendars[0]?.url ?? "");
       setTitle("");
       setAllDay(false);
-      setStart(defaultStart());
-      const e = new Date();
-      e.setMinutes(0, 0, 0);
-      e.setHours(e.getHours() + 2);
-      setEnd(
-        `${e.getFullYear()}-${pad(e.getMonth() + 1)}-${pad(e.getDate())}T${pad(
-          e.getHours()
-        )}:00`
-      );
+      setStart(toLocalDT(base));
+      setEnd(toLocalDT(new Date(base.getTime() + 60 * 60000)));
       setLocation("");
       setNotes("");
     }
-  }, [open, initial, calendars]);
+  }, [open, initial, initialStart, calendars]);
+
+  // Moving the start keeps the current duration; quick buttons set duration.
+  function onStartChange(value: string) {
+    if (allDay) {
+      setStart(value);
+      return;
+    }
+    const oldStart = new Date(start);
+    const oldEnd = new Date(end);
+    const dur =
+      !isNaN(oldStart.getTime()) &&
+      !isNaN(oldEnd.getTime()) &&
+      oldEnd > oldStart
+        ? oldEnd.getTime() - oldStart.getTime()
+        : 60 * 60000;
+    setStart(value);
+    const ns = new Date(value);
+    if (!isNaN(ns.getTime())) setEnd(toLocalDT(new Date(ns.getTime() + dur)));
+  }
+
+  function setDuration(mins: number) {
+    const s = new Date(start);
+    if (isNaN(s.getTime())) return;
+    setEnd(toLocalDT(new Date(s.getTime() + mins * 60000)));
+  }
 
   // Switching all-day flips the input formats to something valid.
   function toggleAllDay(next: boolean) {
@@ -192,7 +216,7 @@ export function EventDialog({
               value={calendarUrl}
               onChange={(e) => setCalendarUrl(e.target.value)}
               disabled={editing}
-              className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-xs outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:opacity-60"
+              className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm shadow-xs outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:opacity-60"
             >
               {calendars.map((c) => (
                 <option key={c.url} value={c.url}>
@@ -219,7 +243,7 @@ export function EventDialog({
                 id="ev-start"
                 type={allDay ? "date" : "datetime-local"}
                 value={start}
-                onChange={(e) => setStart(e.target.value)}
+                onChange={(e) => onStartChange(e.target.value)}
                 required
               />
             </div>
@@ -233,6 +257,28 @@ export function EventDialog({
               />
             </div>
           </div>
+
+          {!allDay && (
+            <div className="flex flex-wrap gap-1.5">
+              {[
+                { label: "30 Min", m: 30 },
+                { label: "1 Std", m: 60 },
+                { label: "1,5 Std", m: 90 },
+                { label: "2 Std", m: 120 },
+              ].map((d) => (
+                <Button
+                  key={d.m}
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  className="h-7"
+                  onClick={() => setDuration(d.m)}
+                >
+                  {d.label}
+                </Button>
+              ))}
+            </div>
+          )}
 
           <div className="space-y-2">
             <Label htmlFor="ev-loc">Ort</Label>
