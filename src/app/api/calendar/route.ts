@@ -53,8 +53,9 @@ export async function POST(request: Request) {
   if (!result.ok) {
     return NextResponse.json(
       {
-        error:
-          "Verbindung fehlgeschlagen. Prüfe Apple-ID und app-spezifisches Passwort.",
+        error: `Verbindung fehlgeschlagen: ${
+          result.error ?? "unbekannter Fehler"
+        }`,
       },
       { status: 400 }
     );
