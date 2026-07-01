@@ -33,8 +33,11 @@ export function useSyncedStore<T>({
   const [state, setStateRaw] = React.useState<T>(initial);
   const [ready, setReady] = React.useState(false);
   const [configured, setConfigured] = React.useState(false);
+  const [saving, setSaving] = React.useState(false);
+  const [saveError, setSaveError] = React.useState<string | null>(null);
   const touched = React.useRef(false);
   const saveTimer = React.useRef<ReturnType<typeof setTimeout> | null>(null);
+  const latest = React.useRef<T>(initial);
 
   // Initial load: local cache first, then server.
   React.useEffect(() => {
@@ -80,8 +83,36 @@ export function useSyncedStore<T>({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [apiKey, localKey]);
 
+  React.useEffect(() => {
+    latest.current = state;
+  }, [state]);
+
+  const save = React.useCallback(
+    async (data: T) => {
+      setSaving(true);
+      setSaveError(null);
+      try {
+        const res = await fetch(`/api/store/${apiKey}`, {
+          method: "PUT",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ data }),
+        });
+        if (!res.ok) {
+          const j = await res.json().catch(() => ({}));
+          throw new Error(j.error || `Speichern fehlgeschlagen (${res.status})`);
+        }
+      } catch (e) {
+        setSaveError((e as Error).message);
+      } finally {
+        setSaving(false);
+      }
+    },
+    [apiKey]
+  );
+
   const persist = React.useCallback(
     (data: T) => {
+      latest.current = data;
       try {
         localStorage.setItem(localKey, JSON.stringify(data));
       } catch {
@@ -89,14 +120,10 @@ export function useSyncedStore<T>({
       }
       if (saveTimer.current) clearTimeout(saveTimer.current);
       saveTimer.current = setTimeout(() => {
-        fetch(`/api/store/${apiKey}`, {
-          method: "PUT",
-          headers: { "content-type": "application/json" },
-          body: JSON.stringify({ data }),
-        }).catch(() => {});
+        void save(data);
       }, 600);
     },
-    [apiKey, localKey]
+    [localKey, save]
   );
 
   const update = React.useCallback(
@@ -114,5 +141,11 @@ export function useSyncedStore<T>({
     [persist]
   );
 
-  return { state, update, ready, configured };
+  // Force an immediate save (e.g. from a manual "save" button).
+  const flush = React.useCallback(async () => {
+    if (saveTimer.current) clearTimeout(saveTimer.current);
+    await save(latest.current);
+  }, [save]);
+
+  return { state, update, ready, configured, saving, saveError, flush };
 }

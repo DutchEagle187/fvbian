@@ -83,10 +83,15 @@ async function searchTmdb(
   });
 }
 
-// Google Books has the best coverage + covers; fall back to Open Library.
+// Google Books has the best coverage + covers; fall back to Open Library
+// on rate limits (429), errors, or empty results.
 async function searchBooks(q: string): Promise<SearchResult[]> {
-  const google = await searchGoogleBooks(q);
-  if (google.length > 0) return google;
+  try {
+    const google = await searchGoogleBooks(q);
+    if (google.length > 0) return google;
+  } catch {
+    // fall through to Open Library
+  }
   return searchOpenLibrary(q);
 }
 

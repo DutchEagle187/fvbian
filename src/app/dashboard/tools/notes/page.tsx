@@ -26,11 +26,12 @@ import { cn } from "@/lib/utils";
 type Mode = "edit" | "split" | "preview";
 
 export default function NotesPage() {
-  const { state, update, ready, configured } = useSyncedStore<string>({
-    apiKey: "notes",
-    localKey: "fvbian:notes",
-    initial: "",
-  });
+  const { state, update, ready, configured, saving, saveError, flush } =
+    useSyncedStore<string>({
+      apiKey: "notes",
+      localKey: "fvbian:notes",
+      initial: "",
+    });
   const [mode, setMode] = React.useState<Mode>("split");
   const [saved, setSaved] = React.useState(false);
   const [uploading, setUploading] = React.useState(false);
@@ -174,9 +175,9 @@ export default function NotesPage() {
         </div>
       </div>
 
-      {error && (
+      {(error || saveError) && (
         <p className="mb-3 rounded-md border border-destructive/30 bg-destructive/10 p-2 text-sm text-destructive">
-          {error}
+          {error ?? `Speichern fehlgeschlagen: ${saveError}`}
         </p>
       )}
 
@@ -224,7 +225,15 @@ export default function NotesPage() {
 
       <div className="mt-3 flex items-center justify-between">
         <span className="flex items-center gap-1.5 text-sm text-muted-foreground">
-          {saved ? (
+          {saving ? (
+            <>
+              <Loader2 className="size-4 animate-spin" /> Speichert…
+            </>
+          ) : saveError ? (
+            <>
+              <CloudOff className="size-4 text-destructive" /> Nicht gespeichert
+            </>
+          ) : saved ? (
             <>
               <Check className="size-4 text-green-500" /> Gespeichert
             </>
@@ -239,14 +248,29 @@ export default function NotesPage() {
             </>
           )}
         </span>
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => change("")}
-          disabled={!state}
-        >
-          <Trash2 className="size-4" /> Leeren
-        </Button>
+        <div className="flex gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => flush()}
+            disabled={saving}
+          >
+            {saving ? (
+              <Loader2 className="size-4 animate-spin" />
+            ) : (
+              <Cloud className="size-4" />
+            )}
+            Sichern
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => change("")}
+            disabled={!state}
+          >
+            <Trash2 className="size-4" /> Leeren
+          </Button>
+        </div>
       </div>
     </div>
   );
