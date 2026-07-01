@@ -3,7 +3,6 @@
 import * as React from "react";
 
 import { Card, CardContent } from "@/components/ui/card";
-import { BorderBeam } from "@/components/magicui/border-beam";
 
 function greeting(hour: number): string {
   if (hour < 5) return "Gute Nacht";
@@ -52,7 +51,6 @@ export function ClockWidget({ name }: { name?: string | null }) {
           <p className="mt-1 capitalize text-muted-foreground">{date}</p>
         </div>
       </CardContent>
-      <BorderBeam duration={10} size={140} colorFrom="#0070F3" colorTo="#38bdf8" />
     </Card>
   );
 }

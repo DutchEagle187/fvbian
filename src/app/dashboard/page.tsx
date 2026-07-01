@@ -3,7 +3,6 @@ import Link from "next/link";
 import { auth } from "@/auth";
 import { BlurFade } from "@/components/magicui/blur-fade";
 import { ClockWidget } from "@/components/dashboard/widgets/clock-widget";
-import { WeatherWidget } from "@/components/dashboard/widgets/weather-widget";
 import { TodosWidget } from "@/components/dashboard/widgets/todos-widget";
 import { BookmarksWidget } from "@/components/dashboard/widgets/bookmarks-widget";
 import { tools } from "@/lib/tools";
@@ -19,12 +18,9 @@ export default async function DashboardPage() {
           <ClockWidget name={firstName} />
         </BlurFade>
         <BlurFade delay={0.1} inView>
-          <WeatherWidget />
-        </BlurFade>
-        <BlurFade delay={0.2} inView>
           <TodosWidget />
         </BlurFade>
-        <BlurFade className="lg:col-span-2" delay={0.3} inView>
+        <BlurFade className="lg:col-span-3" delay={0.2} inView>
           <BookmarksWidget />
         </BlurFade>
       </div>

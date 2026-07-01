@@ -1,5 +1,4 @@
 import {
-  ArrowLeftRight,
   Bookmark,
   LayoutDashboard,
   NotebookPen,
@@ -32,15 +31,8 @@ export const tools: Tool[] = [
     tag: "Tool",
   },
   {
-    title: "Einheiten-Konverter",
-    description: "Längen, Gewichte und Temperaturen blitzschnell umrechnen.",
-    href: "/dashboard/tools/converter",
-    icon: ArrowLeftRight,
-    tag: "Tool",
-  },
-  {
     title: "Lesezeichen",
-    description: "Deine wichtigsten Links an einem Ort sammeln.",
+    description: "Links mit Vorschau sammeln, in Listen organisieren.",
     href: "/dashboard/tools/bookmarks",
     icon: Bookmark,
     tag: "Tool",

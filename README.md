@@ -82,9 +82,10 @@ src/
     login/page.tsx               # Login (Google)
     dashboard/                   # Geschützt (Middleware)
       layout.tsx                 # Sidebar + Topbar
-      page.tsx                   # Übersicht
-      tools/{notes,converter,bookmarks}/
+      page.tsx                   # Widget-Dashboard (Uhr, Todos, Lesezeichen)
+      tools/{notes,bookmarks}/
     api/auth/[...nextauth]/route.ts
+    api/link-preview/route.ts    # Holt OG-Metadaten für Lesezeichen-Vorschau
     actions/auth.ts              # signOut Server Action
   auth.ts                        # NextAuth-Konfiguration + Allowlist-Callback
   middleware.ts                  # Schützt /dashboard
