@@ -19,8 +19,7 @@ export const metadata: Metadata = {
     default: "fvbian",
     template: "%s · fvbian",
   },
-  description:
-    "Persönliche Tools, Spielereien und Dashboards von Fabian — privat, hinter Login.",
+  description: "fvbian",
 };
 
 export default function RootLayout({
