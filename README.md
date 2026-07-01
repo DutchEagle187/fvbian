@@ -32,6 +32,8 @@ Alle in `.env.example` dokumentiert. Kurzfassung:
 | `AUTH_GOOGLE_ID`     | OAuth Client-ID aus der Google Cloud Console                |
 | `AUTH_GOOGLE_SECRET` | OAuth Client-Secret                                         |
 | `ALLOWED_EMAILS`     | Komma-getrennte Liste der zugelassenen Google-E-Mails       |
+| `UPSTASH_REDIS_REST_URL`   | Upstash-Redis REST-URL (für geräteübergreifende Sync) |
+| `UPSTASH_REDIS_REST_TOKEN` | Upstash-Redis REST-Token                              |
 
 ### Google OAuth einrichten
 
@@ -51,6 +53,26 @@ Variable ändern und neu deployen.
 ```env
 ALLOWED_EMAILS=fabian.kingfs@gmail.com,freund@example.com
 ```
+
+### Geräteübergreifende Speicherung (Upstash Redis)
+
+Lesezeichen, Todos und Notizen werden **lokal im Browser** gespeichert und
+zusätzlich **über deine Geräte synchronisiert**, sobald ein Redis-Speicher
+verbunden ist. Ohne Redis funktioniert alles trotzdem — dann eben nur lokal
+pro Browser.
+
+**Einrichten auf Vercel (~2 Min.):**
+
+1. Vercel → dein Projekt → **Storage → Create Database → Redis (Upstash)**.
+2. Mit dem Projekt verbinden — Vercel legt `UPSTASH_REDIS_REST_URL` und
+   `UPSTASH_REDIS_REST_TOKEN` automatisch als Environment Variables an.
+3. Einmal **neu deployen**.
+
+Die klassischen `KV_REST_API_URL` / `KV_REST_API_TOKEN` (Vercel KV) werden
+ebenfalls automatisch erkannt.
+
+Die Daten liegen pro Nutzer unter dem Schlüssel `u:<email>:<bookmarks|todos|notes>`.
+Sync-Strategie: last-write-wins, zugunsten des gerade aktiven Geräts.
 
 ## Auf Vercel deployen
 

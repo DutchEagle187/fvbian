@@ -1,49 +1,48 @@
 "use client";
 
 import * as React from "react";
-import { Check, Trash2 } from "lucide-react";
+import { Check, Cloud, CloudOff, Trash2 } from "lucide-react";
 
 import { PageHeader } from "@/components/dashboard/page-header";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
-
-const STORAGE_KEY = "fvbian:notes";
+import { useSyncedStore } from "@/lib/use-synced-store";
 
 export default function NotesPage() {
-  const [value, setValue] = React.useState("");
+  const { state, update, ready, configured } = useSyncedStore<string>({
+    apiKey: "notes",
+    localKey: "fvbian:notes",
+    initial: "",
+  });
   const [saved, setSaved] = React.useState(false);
-  const [ready, setReady] = React.useState(false);
+  const savedTimer = React.useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  React.useEffect(() => {
-    setValue(localStorage.getItem(STORAGE_KEY) ?? "");
-    setReady(true);
-  }, []);
-
-  React.useEffect(() => {
-    if (!ready) return;
-    const id = setTimeout(() => {
-      localStorage.setItem(STORAGE_KEY, value);
-      setSaved(true);
-      const hide = setTimeout(() => setSaved(false), 1500);
-      return () => clearTimeout(hide);
-    }, 400);
-    return () => clearTimeout(id);
-  }, [value, ready]);
+  function onChange(value: string) {
+    update(value);
+    setSaved(true);
+    if (savedTimer.current) clearTimeout(savedTimer.current);
+    savedTimer.current = setTimeout(() => setSaved(false), 1500);
+  }
 
   return (
     <div>
       <PageHeader
         title="Notizen"
-        description="Alles wird automatisch lokal in diesem Browser gespeichert."
+        description={
+          configured
+            ? "Wird automatisch gespeichert und über deine Geräte synchronisiert."
+            : "Wird automatisch lokal in diesem Browser gespeichert."
+        }
       />
       <Card>
         <CardContent className="space-y-4">
           <Textarea
-            value={value}
-            onChange={(e) => setValue(e.target.value)}
+            value={state}
+            onChange={(e) => onChange(e.target.value)}
             placeholder="Schreib etwas…"
             className="min-h-[50vh] resize-none"
+            disabled={!ready}
           />
           <div className="flex items-center justify-between">
             <span className="flex items-center gap-1.5 text-sm text-muted-foreground">
@@ -52,14 +51,21 @@ export default function NotesPage() {
                   <Check className="size-4 text-green-500" /> Gespeichert
                 </>
               ) : (
-                `${value.length} Zeichen`
+                <>
+                  {configured ? (
+                    <Cloud className="size-4" />
+                  ) : (
+                    <CloudOff className="size-4" />
+                  )}
+                  {state.length} Zeichen
+                </>
               )}
             </span>
             <Button
               variant="outline"
               size="sm"
-              onClick={() => setValue("")}
-              disabled={!value}
+              onClick={() => onChange("")}
+              disabled={!state}
             >
               <Trash2 className="size-4" /> Leeren
             </Button>

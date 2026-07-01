@@ -11,55 +11,19 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { useTodos } from "@/lib/use-todos";
 import { cn } from "@/lib/utils";
 
-const STORAGE_KEY = "fvbian:todos";
-
-interface Todo {
-  id: string;
-  text: string;
-  done: boolean;
-}
-
 export function TodosWidget() {
-  const [todos, setTodos] = React.useState<Todo[]>([]);
-  const [ready, setReady] = React.useState(false);
+  const { todos, add, toggle, remove } = useTodos();
   const [text, setText] = React.useState("");
 
-  React.useEffect(() => {
-    try {
-      const raw = localStorage.getItem(STORAGE_KEY);
-      if (raw) setTodos(JSON.parse(raw));
-    } catch {
-      // ignore malformed storage
-    }
-    setReady(true);
-  }, []);
-
-  React.useEffect(() => {
-    if (!ready) return;
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(todos));
-  }, [todos, ready]);
-
-  function add(e: React.FormEvent) {
+  function submit(e: React.FormEvent) {
     e.preventDefault();
     const value = text.trim();
     if (!value) return;
-    setTodos((prev) => [
-      { id: `${Date.now()}`, text: value, done: false },
-      ...prev,
-    ]);
+    add(value);
     setText("");
-  }
-
-  function toggle(id: string) {
-    setTodos((prev) =>
-      prev.map((t) => (t.id === id ? { ...t, done: !t.done } : t))
-    );
-  }
-
-  function remove(id: string) {
-    setTodos((prev) => prev.filter((t) => t.id !== id));
   }
 
   const open = todos.filter((t) => !t.done).length;
@@ -73,7 +37,7 @@ export function TodosWidget() {
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-3">
-        <form onSubmit={add} className="flex gap-2">
+        <form onSubmit={submit} className="flex gap-2">
           <Input
             value={text}
             onChange={(e) => setText(e.target.value)}

@@ -2,7 +2,9 @@
 
 import * as React from "react";
 
-const KEY = "fvbian:bookmarks:v2";
+import { useSyncedStore } from "@/lib/use-synced-store";
+
+const LOCAL_KEY = "fvbian:bookmarks:v2";
 const LEGACY_KEY = "fvbian:bookmarks";
 
 export interface Folder {
@@ -19,6 +21,7 @@ export interface Bookmark {
   image?: string;
   favicon?: string;
   siteName?: string;
+  tags?: string[];
   folderId: string | null;
   createdAt: number;
 }
@@ -37,76 +40,73 @@ function uid(): string {
   return `${Date.now()}-${Math.floor(Math.random() * 1e6)}`;
 }
 
-function load(): BookmarksState {
+// Migrate the old flat bookmark list (pre-folders) if present.
+function migrate(): BookmarksState | null {
   try {
-    const raw = localStorage.getItem(KEY);
-    if (raw) return JSON.parse(raw) as BookmarksState;
-
-    // One-time migration from the old flat bookmark list.
     const legacy = localStorage.getItem(LEGACY_KEY);
-    if (legacy) {
-      const arr = JSON.parse(legacy) as {
-        id: string;
-        title: string;
-        url: string;
-      }[];
-      return {
-        folders: [],
-        bookmarks: arr.map((b) => ({
-          id: b.id || uid(),
-          url: b.url,
-          title: b.title,
-          folderId: null,
-          createdAt: Date.now(),
-        })),
-      };
-    }
+    if (!legacy) return null;
+    const arr = JSON.parse(legacy) as {
+      id: string;
+      title: string;
+      url: string;
+    }[];
+    return {
+      folders: [],
+      bookmarks: arr.map((b) => ({
+        id: b.id || uid(),
+        url: b.url,
+        title: b.title,
+        folderId: null,
+        createdAt: Date.now(),
+      })),
+    };
   } catch {
-    // ignore malformed storage
+    return null;
   }
-  return EMPTY;
 }
 
 export function useBookmarks() {
-  const [state, setState] = React.useState<BookmarksState>(EMPTY);
-  const [ready, setReady] = React.useState(false);
+  const { state, update, ready, configured } = useSyncedStore<BookmarksState>({
+    apiKey: "bookmarks",
+    localKey: LOCAL_KEY,
+    initial: EMPTY,
+    migrate,
+  });
 
-  React.useEffect(() => {
-    setState(load());
-    setReady(true);
-  }, []);
+  const addFolder = React.useCallback(
+    (name: string, emoji?: string) => {
+      const folder: Folder = { id: uid(), name, emoji };
+      update((s) => ({ ...s, folders: [...s.folders, folder] }));
+      return folder.id;
+    },
+    [update]
+  );
 
-  React.useEffect(() => {
-    if (!ready) return;
-    localStorage.setItem(KEY, JSON.stringify(state));
-  }, [state, ready]);
+  const updateFolder = React.useCallback(
+    (id: string, patch: Partial<Omit<Folder, "id">>) => {
+      update((s) => ({
+        ...s,
+        folders: s.folders.map((f) => (f.id === id ? { ...f, ...patch } : f)),
+      }));
+    },
+    [update]
+  );
 
-  const addFolder = React.useCallback((name: string, emoji?: string) => {
-    const folder: Folder = { id: uid(), name, emoji };
-    setState((s) => ({ ...s, folders: [...s.folders, folder] }));
-    return folder.id;
-  }, []);
-
-  const renameFolder = React.useCallback((id: string, name: string) => {
-    setState((s) => ({
-      ...s,
-      folders: s.folders.map((f) => (f.id === id ? { ...f, name } : f)),
-    }));
-  }, []);
-
-  const deleteFolder = React.useCallback((id: string) => {
-    setState((s) => ({
-      folders: s.folders.filter((f) => f.id !== id),
-      // Keep the bookmarks, just move them back to "Unsortiert".
-      bookmarks: s.bookmarks.map((b) =>
-        b.folderId === id ? { ...b, folderId: null } : b
-      ),
-    }));
-  }, []);
+  const deleteFolder = React.useCallback(
+    (id: string) => {
+      update((s) => ({
+        folders: s.folders.filter((f) => f.id !== id),
+        bookmarks: s.bookmarks.map((b) =>
+          b.folderId === id ? { ...b, folderId: null } : b
+        ),
+      }));
+    },
+    [update]
+  );
 
   const addBookmark = React.useCallback(
     (bookmark: Omit<Bookmark, "id" | "createdAt">) => {
-      setState((s) => ({
+      update((s) => ({
         ...s,
         bookmarks: [
           { ...bookmark, id: uid(), createdAt: Date.now() },
@@ -114,36 +114,72 @@ export function useBookmarks() {
         ],
       }));
     },
-    []
+    [update]
   );
 
-  const deleteBookmark = React.useCallback((id: string) => {
-    setState((s) => ({
-      ...s,
-      bookmarks: s.bookmarks.filter((b) => b.id !== id),
-    }));
-  }, []);
+  const updateBookmark = React.useCallback(
+    (id: string, patch: Partial<Omit<Bookmark, "id">>) => {
+      update((s) => ({
+        ...s,
+        bookmarks: s.bookmarks.map((b) =>
+          b.id === id ? { ...b, ...patch } : b
+        ),
+      }));
+    },
+    [update]
+  );
+
+  const deleteBookmark = React.useCallback(
+    (id: string) => {
+      update((s) => ({
+        ...s,
+        bookmarks: s.bookmarks.filter((b) => b.id !== id),
+      }));
+    },
+    [update]
+  );
 
   const moveBookmark = React.useCallback(
     (id: string, folderId: string | null) => {
-      setState((s) => ({
+      update((s) => ({
         ...s,
         bookmarks: s.bookmarks.map((b) =>
           b.id === id ? { ...b, folderId } : b
         ),
       }));
     },
-    []
+    [update]
+  );
+
+  // Move `draggedId` to sit right before `targetId` in the global order.
+  const reorderBookmark = React.useCallback(
+    (draggedId: string, targetId: string) => {
+      if (draggedId === targetId) return;
+      update((s) => {
+        const list = [...s.bookmarks];
+        const from = list.findIndex((b) => b.id === draggedId);
+        const to = list.findIndex((b) => b.id === targetId);
+        if (from === -1 || to === -1) return s;
+        const [moved] = list.splice(from, 1);
+        const insertAt = list.findIndex((b) => b.id === targetId);
+        list.splice(insertAt, 0, moved);
+        return { ...s, bookmarks: list };
+      });
+    },
+    [update]
   );
 
   return {
     state,
     ready,
+    configured,
     addFolder,
-    renameFolder,
+    updateFolder,
     deleteFolder,
     addBookmark,
+    updateBookmark,
     deleteBookmark,
     moveBookmark,
+    reorderBookmark,
   };
 }
