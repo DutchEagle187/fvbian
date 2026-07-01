@@ -85,8 +85,18 @@ export default function RemindersPage() {
     <div>
       <PageHeader
         title="Erinnerungen"
-        description="Deine iCloud-Erinnerungen — abhaken wird zurück nach iCloud geschrieben."
+        description="iCloud-Erinnerungen (CalDAV) — anlegen, bearbeiten, abhaken."
       />
+
+      {connected && (
+        <p className="mb-4 rounded-md border border-amber-500/30 bg-amber-500/10 p-3 text-xs text-amber-700 dark:text-amber-400">
+          Hinweis: Erinnerungslisten, die in iOS/macOS auf das „neue Format“
+          aktualisiert wurden, sind von Apple bewusst vom CalDAV-Zugriff
+          ausgeschlossen und erscheinen hier nicht (bzw. nur als Platzhalter).
+          Das betrifft alle Drittanbieter-Apps. Neue, hier angelegte Listen
+          bleiben zugänglich.
+        </p>
+      )}
 
       {loading && reminders.length === 0 ? (
         <div className="flex items-center gap-2 text-muted-foreground">

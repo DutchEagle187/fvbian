@@ -85,7 +85,7 @@ export function ReminderDialog({
       await onSubmit(calendarUrl, {
         title: title.trim(),
         notes: notes.trim() || undefined,
-        due: due || null,
+        due: due ? new Date(due).toISOString() : null,
         priority,
       });
       onOpenChange(false);

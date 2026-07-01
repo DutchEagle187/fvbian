@@ -119,11 +119,18 @@ export function EventDialog({
     setBusy(true);
     setError(null);
     try {
+      // For timed events, convert the local wall-clock inputs to UTC ISO here
+      // in the browser (which knows the user's timezone). All-day stays a plain
+      // date string.
+      const startVal = allDay ? start : new Date(start).toISOString();
+      const endVal = allDay
+        ? end || start
+        : new Date(end || start).toISOString();
       await onSubmit(calendarUrl, {
         title: title.trim(),
         allDay,
-        start,
-        end: end || start,
+        start: startVal,
+        end: endVal,
         location: location.trim() || undefined,
         notes: notes.trim() || undefined,
       });
