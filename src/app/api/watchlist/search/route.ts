@@ -83,7 +83,59 @@ async function searchTmdb(
   });
 }
 
+// Google Books has the best coverage + covers; fall back to Open Library.
 async function searchBooks(q: string): Promise<SearchResult[]> {
+  const google = await searchGoogleBooks(q);
+  if (google.length > 0) return google;
+  return searchOpenLibrary(q);
+}
+
+async function searchGoogleBooks(q: string): Promise<SearchResult[]> {
+  const key = process.env.GOOGLE_BOOKS_API_KEY;
+  const url = `https://www.googleapis.com/books/v1/volumes?q=${encodeURIComponent(
+    q
+  )}&maxResults=12&printType=books&country=CH${key ? `&key=${key}` : ""}`;
+  const res = await fetch(url, { signal: AbortSignal.timeout(8000) });
+  if (!res.ok) throw new Error(`Google Books ${res.status}`);
+  const data = (await res.json()) as {
+    items?: {
+      id: string;
+      volumeInfo?: {
+        title?: string;
+        subtitle?: string;
+        authors?: string[];
+        publishedDate?: string;
+        imageLinks?: { thumbnail?: string; smallThumbnail?: string };
+        industryIdentifiers?: { type: string; identifier: string }[];
+      };
+    }[];
+  };
+  return (data.items ?? [])
+    .filter((v) => v.volumeInfo?.title)
+    .slice(0, 12)
+    .map((v) => {
+      const info = v.volumeInfo!;
+      const thumb = info.imageLinks?.thumbnail || info.imageLinks?.smallThumbnail;
+      const isbn =
+        info.industryIdentifiers?.find((i) => i.type === "ISBN_13") ??
+        info.industryIdentifiers?.find((i) => i.type === "ISBN_10");
+      const poster = thumb
+        ? thumb.replace(/^http:/, "https:")
+        : isbn
+          ? `https://covers.openlibrary.org/b/isbn/${isbn.identifier}-M.jpg?default=false`
+          : undefined;
+      return {
+        sourceId: `gb:${v.id}`,
+        type: "book" as const,
+        title: info.title!,
+        year: info.publishedDate?.slice(0, 4),
+        poster,
+        subtitle: info.authors?.join(", "),
+      };
+    });
+}
+
+async function searchOpenLibrary(q: string): Promise<SearchResult[]> {
   const url = `https://openlibrary.org/search.json?limit=12&fields=key,title,first_publish_year,cover_i,author_name&q=${encodeURIComponent(
     q
   )}`;

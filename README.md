@@ -35,6 +35,7 @@ Alle in `.env.example` dokumentiert. Kurzfassung:
 | `UPSTASH_REDIS_REST_URL`   | Upstash-Redis REST-URL (für geräteübergreifende Sync) |
 | `UPSTASH_REDIS_REST_TOKEN` | Upstash-Redis REST-Token                              |
 | `TMDB_API_KEY`             | TMDb-Key für Film-/Serien-Suche (Watchlist, optional) |
+| `BLOB_READ_WRITE_TOKEN`    | Vercel Blob (Bild-Upload in Notizen, optional)        |
 
 ### Google OAuth einrichten
 
