@@ -6,11 +6,14 @@ import {
   ExternalLink,
   Loader2,
   MapPin,
+  Plus,
   RefreshCw,
+  Repeat,
   ShieldCheck,
 } from "lucide-react";
 
 import { PageHeader } from "@/components/dashboard/page-header";
+import { EventDialog } from "@/components/dashboard/event-dialog";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -25,7 +28,9 @@ import {
   formatEventTime,
   groupByDay,
   useCalendarEvents,
+  type CalEvent,
 } from "@/lib/use-calendar";
+import { useCollections } from "@/lib/use-collections";
 import { cn } from "@/lib/utils";
 
 type Status =
@@ -185,12 +190,26 @@ function ConnectForm({ onConnected }: { onConnected: () => void }) {
 
 function Agenda({ onDisconnected }: { onDisconnected: () => void }) {
   const [days, setDays] = React.useState(14);
-  const { events, loading, error, reload } = useCalendarEvents(days);
+  const { events, loading, error, reload, createEvent, updateEvent, deleteEvent } =
+    useCalendarEvents(days);
+  const { eventCalendars } = useCollections();
   const grouped = groupByDay(events);
+
+  const [dialogOpen, setDialogOpen] = React.useState(false);
+  const [editing, setEditing] = React.useState<CalEvent | undefined>();
 
   async function disconnect() {
     await fetch("/api/calendar", { method: "DELETE" });
     onDisconnected();
+  }
+
+  function openCreate() {
+    setEditing(undefined);
+    setDialogOpen(true);
+  }
+  function openEdit(ev: CalEvent) {
+    setEditing(ev);
+    setDialogOpen(true);
   }
 
   return (
@@ -209,6 +228,9 @@ function Agenda({ onDisconnected }: { onDisconnected: () => void }) {
           ))}
         </div>
         <div className="flex gap-2">
+          <Button size="sm" onClick={openCreate} disabled={!eventCalendars.length}>
+            <Plus className="size-4" /> Neuer Termin
+          </Button>
           <Button size="sm" variant="ghost" onClick={reload} disabled={loading}>
             <RefreshCw className={cn("size-4", loading && "animate-spin")} />
             Aktualisieren
@@ -246,14 +268,23 @@ function Agenda({ onDisconnected }: { onDisconnected: () => void }) {
               </h3>
               <div className="space-y-2">
                 {day.events.map((ev) => (
-                  <Card key={ev.id} className="py-0">
+                  <Card
+                    key={ev.id}
+                    className="cursor-pointer py-0 transition-shadow hover:shadow-md"
+                    onClick={() => openEdit(ev)}
+                  >
                     <CardContent className="flex items-start gap-3 py-3">
                       <span
                         className="mt-1 h-10 w-1 shrink-0 rounded-full"
                         style={{ backgroundColor: ev.color ?? "var(--primary)" }}
                       />
                       <div className="min-w-0 flex-1">
-                        <p className="font-medium leading-snug">{ev.title}</p>
+                        <p className="flex items-center gap-1.5 font-medium leading-snug">
+                          {ev.title}
+                          {ev.recurring && (
+                            <Repeat className="size-3 shrink-0 text-muted-foreground" />
+                          )}
+                        </p>
                         <p className="text-sm text-muted-foreground">
                           {formatEventTime(ev)} · {ev.calendar}
                         </p>
@@ -271,6 +302,30 @@ function Agenda({ onDisconnected }: { onDisconnected: () => void }) {
           ))}
         </div>
       )}
+
+      <EventDialog
+        open={dialogOpen}
+        onOpenChange={setDialogOpen}
+        calendars={eventCalendars}
+        initial={editing}
+        onSubmit={(calendarUrl, event) =>
+          editing
+            ? updateEvent(
+                { url: editing.url, calendarUrl: editing.calendarUrl },
+                event
+              )
+            : createEvent(calendarUrl, event)
+        }
+        onDelete={
+          editing
+            ? () =>
+                deleteEvent({
+                  url: editing.url,
+                  calendarUrl: editing.calendarUrl,
+                })
+            : undefined
+        }
+      />
     </div>
   );
 }

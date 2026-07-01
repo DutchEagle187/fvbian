@@ -2,11 +2,13 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { Check, Loader2, RefreshCw } from "lucide-react";
+import { Check, Loader2, Pencil, Plus, RefreshCw } from "lucide-react";
 
 import { PageHeader } from "@/components/dashboard/page-header";
+import { ReminderDialog } from "@/components/dashboard/reminder-dialog";
 import { Button } from "@/components/ui/button";
 import { useReminders, type Reminder } from "@/lib/use-reminders";
+import { useCollections } from "@/lib/use-collections";
 import { cn } from "@/lib/utils";
 
 const dateFmt = new Intl.DateTimeFormat("de-DE", {
@@ -29,9 +31,30 @@ function dueLabel(due: string): { text: string; overdue: boolean } {
 }
 
 export default function RemindersPage() {
-  const { connected, reminders, loading, error, reload, toggle } =
-    useReminders();
+  const {
+    connected,
+    reminders,
+    loading,
+    error,
+    reload,
+    toggle,
+    create,
+    update,
+    remove,
+  } = useReminders();
+  const { reminderLists } = useCollections();
   const [showDone, setShowDone] = React.useState(false);
+  const [dialogOpen, setDialogOpen] = React.useState(false);
+  const [editing, setEditing] = React.useState<Reminder | undefined>();
+
+  function openCreate() {
+    setEditing(undefined);
+    setDialogOpen(true);
+  }
+  function openEdit(r: Reminder) {
+    setEditing(r);
+    setDialogOpen(true);
+  }
 
   const lists = React.useMemo(() => {
     const map = new Map<
@@ -90,6 +113,13 @@ export default function RemindersPage() {
             <div className="flex gap-2">
               <Button
                 size="sm"
+                onClick={openCreate}
+                disabled={!reminderLists.length}
+              >
+                <Plus className="size-4" /> Neue Erinnerung
+              </Button>
+              <Button
+                size="sm"
                 variant={showDone ? "default" : "outline"}
                 onClick={() => setShowDone((s) => !s)}
               >
@@ -137,7 +167,12 @@ export default function RemindersPage() {
                     </h3>
                     <ul className="space-y-1">
                       {items.map((r) => (
-                        <ReminderRow key={r.id} reminder={r} onToggle={toggle} />
+                        <ReminderRow
+                          key={r.id}
+                          reminder={r}
+                          onToggle={toggle}
+                          onEdit={openEdit}
+                        />
                       ))}
                     </ul>
                   </div>
@@ -147,6 +182,30 @@ export default function RemindersPage() {
           )}
         </div>
       )}
+
+      <ReminderDialog
+        open={dialogOpen}
+        onOpenChange={setDialogOpen}
+        lists={reminderLists}
+        initial={editing}
+        onSubmit={(calendarUrl, reminder) =>
+          editing
+            ? update(
+                { url: editing.url, calendarUrl: editing.calendarUrl },
+                reminder
+              )
+            : create(calendarUrl, reminder)
+        }
+        onDelete={
+          editing
+            ? () =>
+                remove({
+                  url: editing.url,
+                  calendarUrl: editing.calendarUrl,
+                })
+            : undefined
+        }
+      />
     </div>
   );
 }
@@ -154,9 +213,11 @@ export default function RemindersPage() {
 function ReminderRow({
   reminder,
   onToggle,
+  onEdit,
 }: {
   reminder: Reminder;
   onToggle: (r: Reminder, done: boolean) => void;
+  onEdit: (r: Reminder) => void;
 }) {
   const due = reminder.due ? dueLabel(reminder.due) : null;
   const highPriority =
@@ -165,7 +226,7 @@ function ReminderRow({
     reminder.priority <= 4;
 
   return (
-    <li className="flex items-start gap-2 rounded-md px-1 py-1.5 hover:bg-accent/50">
+    <li className="group flex items-start gap-2 rounded-md px-1 py-1.5 hover:bg-accent/50">
       <button
         type="button"
         onClick={() => onToggle(reminder, !reminder.completed)}
@@ -179,7 +240,11 @@ function ReminderRow({
       >
         {reminder.completed ? <Check className="size-3.5" /> : null}
       </button>
-      <div className="min-w-0 flex-1">
+      <button
+        type="button"
+        onClick={() => onEdit(reminder)}
+        className="min-w-0 flex-1 text-left"
+      >
         <p
           className={cn(
             "text-sm leading-snug",
@@ -196,7 +261,7 @@ function ReminderRow({
             {reminder.notes}
           </p>
         ) : null}
-      </div>
+      </button>
       {due && !reminder.completed ? (
         <span
           className={cn(
@@ -207,6 +272,14 @@ function ReminderRow({
           {due.text}
         </span>
       ) : null}
+      <button
+        type="button"
+        onClick={() => onEdit(reminder)}
+        aria-label="Bearbeiten"
+        className="mt-0.5 shrink-0 text-muted-foreground opacity-0 transition-opacity hover:text-foreground group-hover:opacity-100"
+      >
+        <Pencil className="size-3.5" />
+      </button>
     </li>
   );
 }

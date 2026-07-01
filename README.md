@@ -89,6 +89,9 @@ serverseitig verwendet.
   mit `ical.js` aufgelöst.
 - **iCloud-Erinnerungen** (VTODO) laufen über denselben Zugang: lesen und
   abhaken (Erledigt-Status wird nach iCloud zurückgeschrieben).
+- **Volle CRUD:** Termine und Erinnerungen lassen sich anlegen, bearbeiten und
+  löschen. Serientermine sind schreibgeschützt (nur Löschen der ganzen Serie),
+  um versehentliches Verschieben der Reihe zu vermeiden.
 
 ## Auf Vercel deployen
 

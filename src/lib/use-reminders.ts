@@ -2,9 +2,9 @@
 
 import * as React from "react";
 
-import type { Reminder } from "@/lib/caldav";
+import type { Reminder, ReminderInput } from "@/lib/caldav";
 
-export type { Reminder };
+export type { Reminder, ReminderInput };
 
 interface RemindersResponse {
   connected: boolean;
@@ -43,7 +43,7 @@ export function useReminders() {
       }));
       try {
         const res = await fetch("/api/calendar/reminders", {
-          method: "POST",
+          method: "PATCH",
           headers: { "content-type": "application/json" },
           body: JSON.stringify({
             url: reminder.url,
@@ -65,5 +65,47 @@ export function useReminders() {
     []
   );
 
-  return { ...data, loading, reload, toggle };
+  const create = React.useCallback(
+    async (calendarUrl: string, reminder: ReminderInput) => {
+      const res = await fetch("/api/calendar/reminders", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ calendarUrl, reminder }),
+      });
+      if (!res.ok) throw new Error((await res.json()).error ?? "Fehler");
+      reload();
+    },
+    [reload]
+  );
+
+  const update = React.useCallback(
+    async (
+      target: { url: string; calendarUrl: string },
+      reminder: ReminderInput
+    ) => {
+      const res = await fetch("/api/calendar/reminders", {
+        method: "PUT",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ ...target, reminder }),
+      });
+      if (!res.ok) throw new Error((await res.json()).error ?? "Fehler");
+      reload();
+    },
+    [reload]
+  );
+
+  const remove = React.useCallback(
+    async (target: { url: string; calendarUrl: string }) => {
+      const res = await fetch("/api/calendar/reminders", {
+        method: "DELETE",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(target),
+      });
+      if (!res.ok) throw new Error((await res.json()).error ?? "Fehler");
+      reload();
+    },
+    [reload]
+  );
+
+  return { ...data, loading, reload, toggle, create, update, remove };
 }

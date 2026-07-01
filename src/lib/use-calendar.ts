@@ -2,9 +2,9 @@
 
 import * as React from "react";
 
-import type { CalEvent } from "@/lib/caldav";
+import type { CalEvent, EventInput } from "@/lib/caldav";
 
-export type { CalEvent };
+export type { CalEvent, EventInput };
 
 interface EventsResponse {
   connected: boolean;
@@ -32,7 +32,49 @@ export function useCalendarEvents(days: number) {
     reload();
   }, [reload]);
 
-  return { ...data, loading, reload };
+  const createEvent = React.useCallback(
+    async (calendarUrl: string, event: EventInput) => {
+      const res = await fetch("/api/calendar/events", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ calendarUrl, event }),
+      });
+      if (!res.ok) throw new Error((await res.json()).error ?? "Fehler");
+      reload();
+    },
+    [reload]
+  );
+
+  const updateEvent = React.useCallback(
+    async (
+      target: { url: string; calendarUrl: string },
+      event: EventInput
+    ) => {
+      const res = await fetch("/api/calendar/events", {
+        method: "PUT",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ ...target, event }),
+      });
+      if (!res.ok) throw new Error((await res.json()).error ?? "Fehler");
+      reload();
+    },
+    [reload]
+  );
+
+  const deleteEvent = React.useCallback(
+    async (target: { url: string; calendarUrl: string }) => {
+      const res = await fetch("/api/calendar/events", {
+        method: "DELETE",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(target),
+      });
+      if (!res.ok) throw new Error((await res.json()).error ?? "Fehler");
+      reload();
+    },
+    [reload]
+  );
+
+  return { ...data, loading, reload, createEvent, updateEvent, deleteEvent };
 }
 
 /* ------------------------------- formatting ------------------------------- */
