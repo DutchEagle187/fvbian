@@ -34,6 +34,7 @@ Alle in `.env.example` dokumentiert. Kurzfassung:
 | `ALLOWED_EMAILS`     | Komma-getrennte Liste der zugelassenen Google-E-Mails       |
 | `UPSTASH_REDIS_REST_URL`   | Upstash-Redis REST-URL (für geräteübergreifende Sync) |
 | `UPSTASH_REDIS_REST_TOKEN` | Upstash-Redis REST-Token                              |
+| `TMDB_API_KEY`             | TMDb-Key für Film-/Serien-Suche (Watchlist, optional) |
 
 ### Google OAuth einrichten
 

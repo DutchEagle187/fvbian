@@ -1,6 +1,7 @@
 import {
   Bookmark,
   CalendarDays,
+  Clapperboard,
   LayoutDashboard,
   ListChecks,
   NotebookPen,
@@ -45,6 +46,13 @@ export const tools: Tool[] = [
     href: "/dashboard/tools/tasks",
     icon: ListChecks,
     tag: "Google",
+  },
+  {
+    title: "Watchlist",
+    description: "Filme, Serien & Bücher zum Schauen und Lesen.",
+    href: "/dashboard/tools/watchlist",
+    icon: Clapperboard,
+    tag: "Tool",
   },
   {
     title: "Lesezeichen",

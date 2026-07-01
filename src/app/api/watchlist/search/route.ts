@@ -1,0 +1,111 @@
+import { NextResponse } from "next/server";
+
+import { auth } from "@/auth";
+
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
+
+interface SearchResult {
+  sourceId: string;
+  type: "movie" | "tv" | "book";
+  title: string;
+  year?: string;
+  poster?: string;
+  subtitle?: string;
+}
+
+export async function GET(request: Request) {
+  const session = await auth();
+  if (!session?.user) {
+    return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+  }
+
+  const params = new URL(request.url).searchParams;
+  const type = params.get("type") as "movie" | "tv" | "book" | null;
+  const q = params.get("q")?.trim();
+  if (!q || !type) {
+    return NextResponse.json({ results: [] });
+  }
+
+  try {
+    if (type === "book") {
+      return NextResponse.json({ results: await searchBooks(q) });
+    }
+    const key = process.env.TMDB_API_KEY;
+    if (!key) {
+      return NextResponse.json({
+        results: [],
+        error: "TMDb-API-Key fehlt (TMDB_API_KEY).",
+      });
+    }
+    return NextResponse.json({ results: await searchTmdb(type, q, key) });
+  } catch (e) {
+    return NextResponse.json(
+      { results: [], error: (e as Error).message },
+      { status: 502 }
+    );
+  }
+}
+
+async function searchTmdb(
+  type: "movie" | "tv",
+  q: string,
+  key: string
+): Promise<SearchResult[]> {
+  const url = `https://api.themoviedb.org/3/search/${type}?api_key=${key}&language=de-DE&include_adult=false&query=${encodeURIComponent(
+    q
+  )}`;
+  const res = await fetch(url, { signal: AbortSignal.timeout(8000) });
+  if (!res.ok) throw new Error(`TMDb ${res.status}`);
+  const data = (await res.json()) as {
+    results?: {
+      id: number;
+      title?: string;
+      name?: string;
+      release_date?: string;
+      first_air_date?: string;
+      poster_path?: string | null;
+      overview?: string;
+    }[];
+  };
+  return (data.results ?? []).slice(0, 12).map((r) => {
+    const date = r.release_date || r.first_air_date || "";
+    return {
+      sourceId: `tmdb:${type}:${r.id}`,
+      type,
+      title: r.title || r.name || "Unbenannt",
+      year: date ? date.slice(0, 4) : undefined,
+      poster: r.poster_path
+        ? `https://image.tmdb.org/t/p/w342${r.poster_path}`
+        : undefined,
+      subtitle: r.overview || undefined,
+    };
+  });
+}
+
+async function searchBooks(q: string): Promise<SearchResult[]> {
+  const url = `https://openlibrary.org/search.json?limit=12&fields=key,title,first_publish_year,cover_i,author_name&q=${encodeURIComponent(
+    q
+  )}`;
+  const res = await fetch(url, { signal: AbortSignal.timeout(8000) });
+  if (!res.ok) throw new Error(`Open Library ${res.status}`);
+  const data = (await res.json()) as {
+    docs?: {
+      key: string;
+      title: string;
+      first_publish_year?: number;
+      cover_i?: number;
+      author_name?: string[];
+    }[];
+  };
+  return (data.docs ?? []).slice(0, 12).map((d) => ({
+    sourceId: `ol:${d.key}`,
+    type: "book" as const,
+    title: d.title,
+    year: d.first_publish_year ? String(d.first_publish_year) : undefined,
+    poster: d.cover_i
+      ? `https://covers.openlibrary.org/b/id/${d.cover_i}-M.jpg`
+      : undefined,
+    subtitle: d.author_name?.[0],
+  }));
+}
