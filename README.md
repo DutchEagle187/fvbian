@@ -74,6 +74,20 @@ ebenfalls automatisch erkannt.
 Die Daten liegen pro Nutzer unter dem Schlüssel `u:<email>:<bookmarks|todos|notes>`.
 Sync-Strategie: last-write-wins, zugunsten des gerade aktiven Geräts.
 
+### iCloud-Kalender (CalDAV)
+
+Das Kalender-Tool verbindet sich per **CalDAV** mit iCloud. Jeder Nutzer
+hinterlegt seine eigene Apple-ID + ein **app-spezifisches Passwort**
+(erstellt unter account.apple.com → Anmeldung & Sicherheit). Die Zugangsdaten
+werden **verschlüsselt** (AES-256-GCM) in Redis gespeichert und nur
+serverseitig verwendet.
+
+- Verschlüsselungsschlüssel: `CALENDAR_ENCRYPTION_KEY` (optional; fällt sonst
+  auf `AUTH_SECRET` zurück).
+- Benötigt den Redis-Speicher (siehe oben).
+- Termine (inkl. Wiederholungen) werden serverseitig via `tsdav` geladen und
+  mit `ical.js` aufgelöst.
+
 ## Auf Vercel deployen
 
 1. Repo auf [vercel.com](https://vercel.com) importieren (Framework: Next.js — wird automatisch erkannt).

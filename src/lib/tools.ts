@@ -1,5 +1,6 @@
 import {
   Bookmark,
+  CalendarDays,
   LayoutDashboard,
   NotebookPen,
   type LucideIcon,
@@ -29,6 +30,13 @@ export const tools: Tool[] = [
     href: "/dashboard/tools/notes",
     icon: NotebookPen,
     tag: "Tool",
+  },
+  {
+    title: "Kalender",
+    description: "Deine iCloud-Kalender an einem Ort (CalDAV).",
+    href: "/dashboard/tools/calendar",
+    icon: CalendarDays,
+    tag: "iCloud",
   },
   {
     title: "Lesezeichen",
