@@ -128,7 +128,8 @@ async function searchGoogleBooks(q: string): Promise<SearchResult[]> {
         ? thumb.replace(/^http:/, "https:")
         : isbn
           ? `https://covers.openlibrary.org/b/isbn/${isbn.identifier}-M.jpg?default=false`
-          : undefined;
+          : // Last resort: Google's cover-content endpoint by volume id.
+            `https://books.google.com/books/content?id=${v.id}&printsec=frontcover&img=1&zoom=1&source=gbs_api`;
       return {
         sourceId: `gb:${v.id}`,
         type: "book" as const,

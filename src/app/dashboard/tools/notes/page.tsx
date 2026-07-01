@@ -2,300 +2,365 @@
 
 import * as React from "react";
 import {
-  Bold,
   Check,
-  Cloud,
-  CloudOff,
-  Heading,
-  Image as ImageIcon,
-  Link as LinkIcon,
-  List,
-  Loader2,
+  FileText,
+  FolderPlus,
+  Layers,
+  MoveRight,
+  NotebookPen,
+  Pencil,
+  Plus,
   Trash2,
-  Upload,
 } from "lucide-react";
 
 import { PageHeader } from "@/components/dashboard/page-header";
-import { NotePreview } from "@/components/dashboard/note-preview";
+import { NoteEditor } from "@/components/dashboard/note-editor";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
-import { Textarea } from "@/components/ui/textarea";
-import { useSyncedStore } from "@/lib/use-synced-store";
+import { Input } from "@/components/ui/input";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
+  noteTitle,
+  useNotebook,
+  type Note,
+  type NoteFolder,
+} from "@/lib/use-notebook";
 import { cn } from "@/lib/utils";
 
-type Mode = "edit" | "split" | "preview";
+const ALL = "all";
+
+function snippet(note: Note): string {
+  return (
+    note.content
+      .split("\n")
+      .slice(1)
+      .join(" ")
+      .replace(/[#*_>`![\]()-]/g, "")
+      .trim()
+      .slice(0, 120) || "Keine weiteren Inhalte"
+  );
+}
+
+const dateFmt = new Intl.DateTimeFormat("de-DE", {
+  day: "2-digit",
+  month: "2-digit",
+  year: "2-digit",
+});
 
 export default function NotesPage() {
-  const { state, update, ready, configured, saving, saveError, flush } =
-    useSyncedStore<string>({
-      apiKey: "notes",
-      localKey: "fvbian:notes",
-      initial: "",
-    });
-  const [mode, setMode] = React.useState<Mode>("split");
-  const [saved, setSaved] = React.useState(false);
-  const [uploading, setUploading] = React.useState(false);
-  const [error, setError] = React.useState<string | null>(null);
-  const ref = React.useRef<HTMLTextAreaElement>(null);
-  const fileRef = React.useRef<HTMLInputElement>(null);
-  const savedTimer = React.useRef<ReturnType<typeof setTimeout> | null>(null);
+  const {
+    state,
+    ready,
+    addFolder,
+    renameFolder,
+    deleteFolder,
+    addNote,
+    updateNote,
+    deleteNote,
+    moveNote,
+    saving,
+    saveError,
+    flush,
+  } = useNotebook();
 
-  function change(value: string) {
-    update(value);
-    setSaved(true);
-    if (savedTimer.current) clearTimeout(savedTimer.current);
-    savedTimer.current = setTimeout(() => setSaved(false), 1500);
+  const [active, setActive] = React.useState<string>(ALL);
+  const [openId, setOpenId] = React.useState<string | null>(null);
+  const [creatingFolder, setCreatingFolder] = React.useState(false);
+
+  const openNote = state.notes.find((n) => n.id === openId) ?? null;
+
+  const visible = state.notes
+    .filter((n) => active === ALL || n.folderId === active)
+    .sort((a, b) => b.updatedAt - a.updatedAt);
+
+  const countFor = (id: string) =>
+    id === ALL
+      ? state.notes.length
+      : state.notes.filter((n) => n.folderId === id).length;
+
+  function createNote() {
+    const folderId = active === ALL ? null : active;
+    setOpenId(addNote(folderId));
   }
 
-  // Insert/replace at the current cursor, keeping focus.
-  function apply(
-    transform: (sel: string) => { text: string; caret?: number }
-  ) {
-    const el = ref.current;
-    if (!el) return;
-    const start = el.selectionStart;
-    const end = el.selectionEnd;
-    const sel = state.slice(start, end);
-    const { text, caret } = transform(sel);
-    const next = state.slice(0, start) + text + state.slice(end);
-    change(next);
-    const pos = start + (caret ?? text.length);
-    requestAnimationFrame(() => {
-      el.focus();
-      el.setSelectionRange(pos, pos);
-    });
-  }
-
-  const surround = (before: string, after = before, ph = "") =>
-    apply((sel) => ({
-      text: `${before}${sel || ph}${after}`,
-      caret: sel ? undefined : before.length + (ph.length || 0),
-    }));
-
-  const insertBlock = (text: string) =>
-    apply(() => ({ text: `${text}` }));
-
-  async function uploadFiles(files: FileList | File[]) {
-    const images = Array.from(files).filter((f) => f.type.startsWith("image/"));
-    if (images.length === 0) return;
-    setUploading(true);
-    setError(null);
-    for (const file of images) {
-      try {
-        const fd = new FormData();
-        fd.append("file", file);
-        const res = await fetch("/api/upload", { method: "POST", body: fd });
-        const data = await res.json();
-        if (!res.ok) {
-          setError(data.error ?? "Upload fehlgeschlagen.");
-          break;
-        }
-        insertBlock(`\n![](${data.url})\n`);
-      } catch {
-        setError("Upload fehlgeschlagen.");
-        break;
-      }
-    }
-    setUploading(false);
+  if (openNote) {
+    return (
+      <div>
+        <NoteEditor
+          note={openNote}
+          onPatch={(patch) => updateNote(openNote.id, patch)}
+          onBack={() => setOpenId(null)}
+          onDelete={() => {
+            deleteNote(openNote.id);
+            setOpenId(null);
+          }}
+          saving={saving}
+          saveError={saveError}
+          onFlush={flush}
+        />
+      </div>
+    );
   }
 
   return (
     <div>
       <PageHeader
         title="Notizen"
-        description={
-          configured
-            ? "Markdown mit Bildern & Link-Vorschau — synchron über deine Geräte."
-            : "Markdown mit Bildern & Link-Vorschau — lokal gespeichert."
-        }
+        description="In benannten Listen organisiert — mit Markdown, Bildern & Link-Vorschau."
       />
 
-      <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-        <div className="flex flex-wrap gap-1">
-          <ToolButton title="Überschrift" onClick={() => surround("## ", "", "Titel")}>
-            <Heading className="size-4" />
-          </ToolButton>
-          <ToolButton title="Fett" onClick={() => surround("**", "**", "fett")}>
-            <Bold className="size-4" />
-          </ToolButton>
-          <ToolButton title="Liste" onClick={() => surround("- ", "", "Punkt")}>
-            <List className="size-4" />
-          </ToolButton>
-          <ToolButton
-            title="Link"
-            onClick={() => surround("[", "](https://)", "Text")}
-          >
-            <LinkIcon className="size-4" />
-          </ToolButton>
-          <ToolButton
-            title="Bild per URL"
-            onClick={() => surround("![](", ")", "https://…")}
-          >
-            <ImageIcon className="size-4" />
-          </ToolButton>
-          <ToolButton
-            title="Bild hochladen"
-            onClick={() => fileRef.current?.click()}
-          >
-            {uploading ? (
-              <Loader2 className="size-4 animate-spin" />
-            ) : (
-              <Upload className="size-4" />
-            )}
-          </ToolButton>
-          <input
-            ref={fileRef}
-            type="file"
-            accept="image/*"
-            multiple
-            className="hidden"
-            onChange={(e) => {
-              if (e.target.files) uploadFiles(e.target.files);
-              e.target.value = "";
-            }}
-          />
-        </div>
-
-        <div className="flex gap-1 rounded-md border p-0.5">
-          {(["edit", "split", "preview"] as Mode[]).map((m) => (
-            <Button
-              key={m}
-              size="sm"
-              variant={mode === m ? "default" : "ghost"}
-              className="h-7"
-              onClick={() => setMode(m)}
-            >
-              {m === "edit"
-                ? "Bearbeiten"
-                : m === "split"
-                  ? "Geteilt"
-                  : "Vorschau"}
-            </Button>
-          ))}
-        </div>
-      </div>
-
-      {(error || saveError) && (
-        <p className="mb-3 rounded-md border border-destructive/30 bg-destructive/10 p-2 text-sm text-destructive">
-          {error ?? `Speichern fehlgeschlagen: ${saveError}`}
-        </p>
-      )}
-
-      <div
-        className={cn(
-          "grid gap-4",
-          mode === "split" ? "md:grid-cols-2" : "grid-cols-1"
-        )}
-      >
-        {mode !== "preview" && (
-          <Card>
-            <CardContent>
-              <Textarea
-                ref={ref}
-                value={state}
-                onChange={(e) => change(e.target.value)}
-                onPaste={(e) => {
-                  const files = e.clipboardData.files;
-                  if (files.length > 0) {
-                    e.preventDefault();
-                    uploadFiles(files);
-                  }
+      <div className="flex flex-col gap-6 md:flex-row">
+        {/* Folder rail */}
+        <aside className="md:w-56 md:shrink-0">
+          <nav className="flex gap-2 overflow-x-auto md:flex-col md:overflow-visible">
+            <FolderRow
+              icon={<Layers className="size-4" />}
+              label="Alle Notizen"
+              count={countFor(ALL)}
+              active={active === ALL}
+              onClick={() => setActive(ALL)}
+            />
+            {state.folders.map((f) => (
+              <FolderRow
+                key={f.id}
+                label={f.name}
+                count={countFor(f.id)}
+                active={active === f.id}
+                onClick={() => setActive(f.id)}
+                folder={f}
+                onSave={(name) => renameFolder(f.id, name)}
+                onDelete={() => {
+                  deleteFolder(f.id);
+                  if (active === f.id) setActive(ALL);
                 }}
-                onDrop={(e) => {
-                  if (e.dataTransfer.files.length > 0) {
-                    e.preventDefault();
-                    uploadFiles(e.dataTransfer.files);
-                  }
-                }}
-                placeholder="Schreib etwas… Markdown, Bilder (einfügen/ziehen) und Links werden unterstützt."
-                className="min-h-[55vh] resize-none font-mono text-sm"
-                disabled={!ready}
               />
-            </CardContent>
-          </Card>
-        )}
-        {mode !== "edit" && (
-          <Card>
-            <CardContent className="min-h-[55vh]">
-              <NotePreview content={state} />
-            </CardContent>
-          </Card>
-        )}
-      </div>
-
-      <div className="mt-3 flex items-center justify-between">
-        <span className="flex items-center gap-1.5 text-sm text-muted-foreground">
-          {saving ? (
-            <>
-              <Loader2 className="size-4 animate-spin" /> Speichert…
-            </>
-          ) : saveError ? (
-            <>
-              <CloudOff className="size-4 text-destructive" /> Nicht gespeichert
-            </>
-          ) : saved ? (
-            <>
-              <Check className="size-4 text-green-500" /> Gespeichert
-            </>
-          ) : (
-            <>
-              {configured ? (
-                <Cloud className="size-4" />
-              ) : (
-                <CloudOff className="size-4" />
-              )}
-              {state.length} Zeichen
-            </>
-          )}
-        </span>
-        <div className="flex gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => flush()}
-            disabled={saving}
-          >
-            {saving ? (
-              <Loader2 className="size-4 animate-spin" />
+            ))}
+            {creatingFolder ? (
+              <FolderEditor
+                onSave={(name) => {
+                  const id = addFolder(name);
+                  setCreatingFolder(false);
+                  setActive(id);
+                }}
+                onCancel={() => setCreatingFolder(false)}
+              />
             ) : (
-              <Cloud className="size-4" />
+              <button
+                type="button"
+                onClick={() => setCreatingFolder(true)}
+                className="flex shrink-0 items-center gap-2 rounded-md px-3 py-2 text-sm text-muted-foreground transition-colors hover:bg-accent/50 hover:text-foreground md:mt-1"
+              >
+                <FolderPlus className="size-4" /> Neue Liste
+              </button>
             )}
-            Sichern
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => change("")}
-            disabled={!state}
-          >
-            <Trash2 className="size-4" /> Leeren
-          </Button>
+          </nav>
+        </aside>
+
+        {/* Notes list */}
+        <div className="min-w-0 flex-1">
+          <div className="mb-4 flex justify-end">
+            <Button size="sm" onClick={createNote}>
+              <Plus className="size-4" /> Neue Notiz
+            </Button>
+          </div>
+
+          {!ready ? null : visible.length === 0 ? (
+            <p className="rounded-md border border-dashed p-10 text-center text-sm text-muted-foreground">
+              Keine Notizen hier. Erstelle deine erste.
+            </p>
+          ) : (
+            <div className="grid gap-3 sm:grid-cols-2">
+              {visible.map((note) => (
+                <div
+                  key={note.id}
+                  className="group relative cursor-pointer rounded-lg border bg-card p-4 transition-shadow hover:shadow-md"
+                  onClick={() => setOpenId(note.id)}
+                >
+                  <div className="flex items-start gap-2">
+                    <FileText className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate font-medium">{noteTitle(note)}</p>
+                      <p className="mt-1 line-clamp-2 text-sm text-muted-foreground">
+                        {snippet(note)}
+                      </p>
+                      <p className="mt-2 text-xs text-muted-foreground">
+                        {dateFmt.format(new Date(note.updatedAt))}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div
+                    className="absolute right-2 top-2"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="size-7 opacity-0 transition-opacity group-hover:opacity-100 data-[state=open]:opacity-100"
+                          aria-label="Aktionen"
+                        >
+                          <MoveRight className="size-4" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end" className="w-44">
+                        <DropdownMenuLabel>Verschieben nach</DropdownMenuLabel>
+                        <DropdownMenuItem onSelect={() => moveNote(note.id, null)}>
+                          Alle Notizen
+                        </DropdownMenuItem>
+                        {state.folders.map((f) => (
+                          <DropdownMenuItem
+                            key={f.id}
+                            onSelect={() => moveNote(note.id, f.id)}
+                          >
+                            {f.name}
+                          </DropdownMenuItem>
+                        ))}
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem
+                          variant="destructive"
+                          onSelect={() => deleteNote(note.id)}
+                        >
+                          <Trash2 className="size-4" /> Löschen
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       </div>
     </div>
   );
 }
 
-function ToolButton({
-  title,
+function FolderRow({
+  icon,
+  label,
+  count,
+  active,
   onClick,
-  children,
+  folder,
+  onSave,
+  onDelete,
 }: {
-  title: string;
+  icon?: React.ReactNode;
+  label: string;
+  count: number;
+  active: boolean;
   onClick: () => void;
-  children: React.ReactNode;
+  folder?: NoteFolder;
+  onSave?: (name: string) => void;
+  onDelete?: () => void;
 }) {
+  const [editing, setEditing] = React.useState(false);
+
+  if (editing && folder && onSave) {
+    return (
+      <FolderEditor
+        initial={folder}
+        onSave={(name) => {
+          onSave(name);
+          setEditing(false);
+        }}
+        onCancel={() => setEditing(false)}
+        onDelete={onDelete}
+      />
+    );
+  }
+
   return (
-    <Button
-      type="button"
-      variant="outline"
-      size="icon"
-      className="size-8"
-      title={title}
-      aria-label={title}
-      onClick={onClick}
+    <div
+      className={cn(
+        "group flex shrink-0 items-center gap-2 rounded-md px-3 py-2 text-sm font-medium transition-colors",
+        active
+          ? "bg-accent text-accent-foreground"
+          : "text-muted-foreground hover:bg-accent/50 hover:text-foreground"
+      )}
     >
-      {children}
-    </Button>
+      <button
+        type="button"
+        onClick={onClick}
+        className="flex min-w-0 flex-1 items-center gap-2"
+      >
+        {icon ?? <NotebookPen className="size-4" />}
+        <span className="truncate">{label}</span>
+      </button>
+      <span className="text-xs tabular-nums text-muted-foreground">{count}</span>
+      {folder ? (
+        <button
+          type="button"
+          onClick={() => setEditing(true)}
+          aria-label="Liste bearbeiten"
+          className="text-muted-foreground opacity-0 transition-opacity hover:text-foreground group-hover:opacity-100"
+        >
+          <Pencil className="size-3.5" />
+        </button>
+      ) : null}
+    </div>
+  );
+}
+
+function FolderEditor({
+  initial,
+  onSave,
+  onCancel,
+  onDelete,
+}: {
+  initial?: NoteFolder;
+  onSave: (name: string) => void;
+  onCancel: () => void;
+  onDelete?: () => void;
+}) {
+  const [name, setName] = React.useState(initial?.name ?? "");
+
+  return (
+    <div className="shrink-0 space-y-2 rounded-md border bg-card p-2 md:mt-1">
+      <form
+        onSubmit={(e) => {
+          e.preventDefault();
+          if (name.trim()) onSave(name.trim());
+        }}
+        className="flex gap-1"
+      >
+        <Input
+          autoFocus
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          placeholder="Listenname…"
+          className="h-8"
+        />
+        <Button type="submit" size="icon" className="size-8 shrink-0">
+          <Check className="size-4" />
+        </Button>
+      </form>
+      <div className="flex items-center justify-between">
+        <button
+          type="button"
+          onClick={onCancel}
+          className="text-xs text-muted-foreground hover:text-foreground"
+        >
+          Abbrechen
+        </button>
+        {onDelete ? (
+          <button
+            type="button"
+            onClick={onDelete}
+            className="flex items-center gap-1 text-xs text-destructive hover:underline"
+          >
+            <Trash2 className="size-3" /> Löschen
+          </button>
+        ) : null}
+      </div>
+    </div>
   );
 }

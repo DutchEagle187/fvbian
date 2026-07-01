@@ -6,7 +6,13 @@ import { getRedis } from "@/lib/redis";
 export const runtime = "nodejs";
 
 // Which per-user documents may be stored/read through this endpoint.
-const ALLOWED_KEYS = new Set(["bookmarks", "todos", "notes", "watchlist"]);
+const ALLOWED_KEYS = new Set([
+  "bookmarks",
+  "todos",
+  "notes",
+  "watchlist",
+  "notebook",
+]);
 
 function storageKey(email: string, key: string) {
   return `u:${email.toLowerCase()}:${key}`;
