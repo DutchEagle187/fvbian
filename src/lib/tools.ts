@@ -40,11 +40,11 @@ export const tools: Tool[] = [
     tag: "iCloud",
   },
   {
-    title: "Erinnerungen",
-    description: "Deine iCloud-Erinnerungen lesen und abhaken.",
-    href: "/dashboard/tools/reminders",
+    title: "Aufgaben",
+    description: "Google Tasks — anlegen, abhaken, geräteübergreifend synchron.",
+    href: "/dashboard/tools/tasks",
     icon: ListChecks,
-    tag: "iCloud",
+    tag: "Google",
   },
   {
     title: "Lesezeichen",

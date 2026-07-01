@@ -14,27 +14,14 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import type { Reminder, ReminderInput } from "@/lib/use-reminders";
-import type { CalendarCollection } from "@/lib/use-collections";
+import type { Task, TaskInput, TaskList } from "@/lib/use-tasks";
 
-function pad(n: number) {
-  return String(n).padStart(2, "0");
-}
-function toDateTimeInput(iso: string) {
-  const d = new Date(iso);
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(
-    d.getHours()
-  )}:${pad(d.getMinutes())}`;
+function toDateInput(due?: string | null) {
+  if (!due) return "";
+  return new Date(due).toISOString().slice(0, 10);
 }
 
-const PRIORITIES = [
-  { label: "Keine", value: 0 },
-  { label: "Hoch", value: 1 },
-  { label: "Mittel", value: 5 },
-  { label: "Niedrig", value: 9 },
-];
-
-export function ReminderDialog({
+export function TaskDialog({
   open,
   onOpenChange,
   lists,
@@ -44,17 +31,16 @@ export function ReminderDialog({
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  lists: CalendarCollection[];
-  initial?: Reminder;
-  onSubmit: (calendarUrl: string, reminder: ReminderInput) => Promise<void>;
+  lists: TaskList[];
+  initial?: Task;
+  onSubmit: (listId: string, task: TaskInput) => Promise<void>;
   onDelete?: () => Promise<void>;
 }) {
   const editing = !!initial;
-  const [calendarUrl, setCalendarUrl] = React.useState("");
+  const [listId, setListId] = React.useState("");
   const [title, setTitle] = React.useState("");
-  const [notes, setNotes] = React.useState("");
   const [due, setDue] = React.useState("");
-  const [priority, setPriority] = React.useState(0);
+  const [notes, setNotes] = React.useState("");
   const [busy, setBusy] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
 
@@ -62,31 +48,28 @@ export function ReminderDialog({
     if (!open) return;
     setError(null);
     if (initial) {
-      setCalendarUrl(initial.calendarUrl);
+      setListId(initial.listId);
       setTitle(initial.title);
+      setDue(toDateInput(initial.due));
       setNotes(initial.notes ?? "");
-      setDue(initial.due ? toDateTimeInput(initial.due) : "");
-      setPriority(initial.priority ?? 0);
     } else {
-      setCalendarUrl(lists[0]?.url ?? "");
+      setListId(lists[0]?.id ?? "");
       setTitle("");
-      setNotes("");
       setDue("");
-      setPriority(0);
+      setNotes("");
     }
   }, [open, initial, lists]);
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
-    if (!title.trim() || !calendarUrl) return;
+    if (!title.trim() || !listId) return;
     setBusy(true);
     setError(null);
     try {
-      await onSubmit(calendarUrl, {
+      await onSubmit(listId, {
         title: title.trim(),
         notes: notes.trim() || undefined,
-        due: due ? new Date(due).toISOString() : null,
-        priority,
+        due: due || null,
       });
       onOpenChange(false);
     } catch (err) {
@@ -115,15 +98,15 @@ export function ReminderDialog({
       <DialogContent>
         <DialogHeader>
           <DialogTitle>
-            {editing ? "Erinnerung bearbeiten" : "Neue Erinnerung"}
+            {editing ? "Aufgabe bearbeiten" : "Neue Aufgabe"}
           </DialogTitle>
         </DialogHeader>
 
         <form onSubmit={submit} className="space-y-4">
           <div className="space-y-2">
-            <Label htmlFor="rm-title">Titel</Label>
+            <Label htmlFor="tk-title">Titel</Label>
             <Input
-              id="rm-title"
+              id="tk-title"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
               autoFocus
@@ -131,54 +114,38 @@ export function ReminderDialog({
             />
           </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="rm-list">Liste</Label>
-            <select
-              id="rm-list"
-              value={calendarUrl}
-              onChange={(e) => setCalendarUrl(e.target.value)}
-              disabled={editing}
-              className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-xs outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:opacity-60"
-            >
-              {lists.map((c) => (
-                <option key={c.url} value={c.url}>
-                  {c.name}
-                </option>
-              ))}
-            </select>
-          </div>
-
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-2">
-              <Label htmlFor="rm-due">Fällig</Label>
-              <Input
-                id="rm-due"
-                type="datetime-local"
-                value={due}
-                onChange={(e) => setDue(e.target.value)}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="rm-prio">Priorität</Label>
+              <Label htmlFor="tk-list">Liste</Label>
               <select
-                id="rm-prio"
-                value={priority}
-                onChange={(e) => setPriority(Number(e.target.value))}
-                className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-xs outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
+                id="tk-list"
+                value={listId}
+                onChange={(e) => setListId(e.target.value)}
+                disabled={editing}
+                className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-xs outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:opacity-60"
               >
-                {PRIORITIES.map((p) => (
-                  <option key={p.value} value={p.value}>
-                    {p.label}
+                {lists.map((l) => (
+                  <option key={l.id} value={l.id}>
+                    {l.title}
                   </option>
                 ))}
               </select>
             </div>
+            <div className="space-y-2">
+              <Label htmlFor="tk-due">Fällig</Label>
+              <Input
+                id="tk-due"
+                type="date"
+                value={due}
+                onChange={(e) => setDue(e.target.value)}
+              />
+            </div>
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="rm-notes">Notizen</Label>
+            <Label htmlFor="tk-notes">Notizen</Label>
             <Textarea
-              id="rm-notes"
+              id="tk-notes"
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
               className="min-h-20"

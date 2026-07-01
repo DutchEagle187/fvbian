@@ -87,11 +87,24 @@ serverseitig verwendet.
 - Benötigt den Redis-Speicher (siehe oben).
 - Termine (inkl. Wiederholungen) werden serverseitig via `tsdav` geladen und
   mit `ical.js` aufgelöst.
-- **iCloud-Erinnerungen** (VTODO) laufen über denselben Zugang: lesen und
-  abhaken (Erledigt-Status wird nach iCloud zurückgeschrieben).
-- **Volle CRUD:** Termine und Erinnerungen lassen sich anlegen, bearbeiten und
-  löschen. Serientermine sind schreibgeschützt (nur Löschen der ganzen Serie),
-  um versehentliches Verschieben der Reihe zu vermeiden.
+- **Volle CRUD:** Termine lassen sich anlegen, bearbeiten und löschen.
+  Serientermine sind schreibgeschützt (nur Löschen der ganzen Serie), um
+  versehentliches Verschieben der Reihe zu vermeiden.
+
+> Hinweis: iCloud-**Erinnerungen** sind seit iOS 13/Catalina von Apple vom
+> CalDAV-Zugriff ausgeschlossen (proprietäres Format) und daher nicht
+> anbindbar. Als Ersatz nutzt das „Aufgaben"-Tool **Google Tasks**.
+
+### Google Tasks (Aufgaben-Tool)
+
+Nutzt den bestehenden Google-Login mit zusätzlichem Scope
+`https://www.googleapis.com/auth/tasks` (read/write). Nach dem Aktivieren
+müssen sich Nutzer einmal neu anmelden, um den Zugriff freizugeben.
+
+- In der Google Cloud Console muss der OAuth-Consent-Screen den Tasks-Scope
+  erlauben; im Test-Modus müssen die Nutzer als **Test-User** eingetragen sein.
+- Tokens (inkl. Refresh) liegen verschlüsselt im Session-JWT; Access-Tokens
+  werden bei Ablauf automatisch erneuert.
 
 ## Auf Vercel deployen
 
