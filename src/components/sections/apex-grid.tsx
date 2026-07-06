@@ -312,27 +312,23 @@ function ApexCard({ animal, index }: { animal: Animal; index: number }) {
           }}
         />
 
-        {/* artwork: real wildlife photo (duotone → wakes to color on hover),
-            procedural canvas as fallback while/if the photo is missing */}
-        <div className="relative aspect-[4/3] overflow-hidden border-b border-line bg-black/50">
+        {/* artwork: generated apex portrait (Higgsfield), staring straight
+            at the visitor — procedural canvas as fallback if missing */}
+        <div className="relative aspect-[3/4] overflow-hidden border-b border-line bg-black/50">
           {imgOk ? (
             <>
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
                 src={`/apex/${animal.id}.webp`}
                 alt={animal.name}
-                className="size-full object-cover grayscale contrast-[1.12] brightness-[0.82] transition-all duration-700 ease-out group-hover:scale-[1.06] group-hover:grayscale-0 group-hover:brightness-100"
+                className="size-full object-cover transition-all duration-700 ease-out group-hover:scale-[1.06] group-hover:brightness-110"
               />
-              {/* accent duotone wash, lifts on hover */}
+              {/* embed into the card: soft bottom fade + edge vignette */}
               <div
-                className="pointer-events-none absolute inset-0 mix-blend-color transition-opacity duration-700 group-hover:opacity-0"
-                style={{ backgroundColor: animal.accentVar, opacity: 0.55 }}
-              />
-              <div
-                className="pointer-events-none absolute inset-0 transition-opacity duration-700 group-hover:opacity-40"
+                className="pointer-events-none absolute inset-0"
                 style={{
                   background:
-                    "linear-gradient(to top, oklch(0.09 0.01 260) 0%, transparent 45%), radial-gradient(90% 70% at 50% 30%, transparent 55%, rgba(0,0,0,0.55))",
+                    "linear-gradient(to top, oklch(0.09 0.01 260) 0%, transparent 30%), radial-gradient(120% 90% at 50% 40%, transparent 60%, rgba(0,0,0,0.5))",
                 }}
               />
             </>

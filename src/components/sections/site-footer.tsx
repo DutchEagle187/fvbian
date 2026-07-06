@@ -32,33 +32,7 @@ export function SiteFooter() {
         </p>
 
         <p className="max-w-xl font-mono text-[9px] leading-relaxed text-muted/70">
-          Wildlife-Fotografie via Wikimedia Commons:{" "}
-          <a
-            href="https://commons.wikimedia.org/wiki/File:Portrait_of_a_golden_eagle.jpg"
-            target="_blank"
-            rel="noreferrer"
-            className="underline decoration-line underline-offset-2 hover:text-muted"
-          >
-            Adler — J. Lodos Benavente (CC0)
-          </a>{" "}
-          ·{" "}
-          <a
-            href="https://commons.wikimedia.org/wiki/File:Cheetah_portrait_front.jpg"
-            target="_blank"
-            rel="noreferrer"
-            className="underline decoration-line underline-offset-2 hover:text-muted"
-          >
-            Gepard — Bilby (CC BY 3.0)
-          </a>{" "}
-          ·{" "}
-          <a
-            href="https://commons.wikimedia.org/wiki/File:Lemur_closeup.jpg"
-            target="_blank"
-            rel="noreferrer"
-            className="underline decoration-line underline-offset-2 hover:text-muted"
-          >
-            Lemur — Octagon (CC BY 4.0)
-          </a>
+          Tierporträts generiert mit Higgsfield AI.
         </p>
       </div>
     </footer>
