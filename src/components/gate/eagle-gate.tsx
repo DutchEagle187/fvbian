@@ -3,6 +3,7 @@
 import * as React from "react";
 import {
   motion,
+  useMotionTemplate,
   useMotionValueEvent,
   useReducedMotion,
   useScroll,
@@ -10,48 +11,20 @@ import {
 } from "motion/react";
 
 import { EagleEye, type EyeParams } from "./eagle-eye";
-import { PhotoIris } from "./photo-iris";
 import { useImageAvailable } from "@/lib/use-image";
 
 /**
- * The entry gate: a 420vh scroll journey INTO the eagle.
+ * The entry gate: one single, continuous camera dive into the eagle's
+ * actual pupil. Nothing in the photo moves, nothing is overlaid — the
+ * scroll drives a pure zoom (with a slow drift that centers the pupil),
+ * until the black of the pupil swallows the viewport and the site opens.
  *
- *   0.00–0.34  the head — hyperreal eagle stares you down
- *   0.34–0.50  dive toward its left eye, crossfade to the giant iris
- *   0.50–0.68  focus — pupil contracts to a pin, iris ignites
- *   0.68–0.95  dilation — camera dives, pupil blows wide open
- *   0.95–1.00  the pupil swallows the viewport → site revealed
- *
- * Without /eagle-head.webp the sequence starts directly at the iris.
+ * Pixel-measured geometry of public/eagle-head.webp:
+ *   pupil center (33.5%, 29.1%) · pupil diameter 3.62% of image width
  */
-
-/*
- * Pixel-measured geometry of the head image (public/eagle-head.webp):
- *   iris center  (32.1%, 29.7%)  ·  iris diameter 9.0% of image width
- *   pupil/iris ratio ≈ 0.45
- *
- * The canvas iris spans 92% of an 88vmin element → 0.8096·vmin.
- * The photo iris spans headScale·vmin·0.09.
- * Size lock during the handoff window [0.46, 0.54]:
- *   eyeScale(v) = headScale(v) · 0.09 / 0.8096
- * With headScale(0.54) = 9.0 the canvas lands exactly at scale 1.
- * Both tracks are linear over the same window, so the ratio holds on
- * every frame — the two irises stay pixel-locked while crossfading.
- */
-// Values calibrated against actual rendered frames (screenshot metrology),
-// not just the source image — this accounts for the full transform pipeline.
-const EYE_X = 32.9; // % — iris center in the image
-const EYE_Y = 29.6; // %
-const IRIS_FRAC = 0.0934; // iris diameter / image width
-const HANDOFF_START = 0.46;
-const HANDOFF_END = 0.54;
-const HEAD_SCALE_END = 0.8096 / IRIS_FRAC; // canvas iris == photo iris at end
-const EYE_SCALE_AT_START =
-  (1.07 + (HEAD_SCALE_END - 1.07) * 0.6) * (IRIS_FRAC / 0.8096); // ≈0.649
-const PHOTO_PUPIL = 0.41;
-// photo pupil sits slightly off the iris center (in units of iris radius)
-const PUPIL_OFF_X = 0.12;
-const PUPIL_OFF_Y = -0.1;
+const PUP_X = 33.5; // %
+const PUP_Y = 29.1; // %
+const PUPIL_FRAC = 0.0362;
 
 export function EagleGate() {
   const target = React.useRef<HTMLDivElement>(null);
@@ -62,99 +35,83 @@ export function EagleGate() {
   });
 
   const headOk = useImageAvailable("/eagle-head.webp");
-  // Real-iris texture (extracted from the photo) — preferred over the
-  // procedural iris because the crossfade becomes texture-identical.
-  const irisTexOk = useImageAvailable("/iris-macro.webp");
 
-  // Eye canvas params (mutated per scroll frame, zero re-renders).
-  const eyeParams = React.useRef<EyeParams>({
-    pupil: PHOTO_PUPIL,
-    rage: 0,
-    rotation: 0,
-    pupilOffsetX: PUPIL_OFF_X,
-    pupilOffsetY: PUPIL_OFF_Y,
-  });
-
-  useMotionValueEvent(scrollYProgress, "change", (v) => {
-    // pupil offset matches the photo through the handoff, then re-centers
-    const settle = 1 - Math.min(1, Math.max(0, (v - HANDOFF_END) / 0.12));
-    eyeParams.current = {
-      pupil: irisTexOk ? pupilPhotoAt(v) : pupilAt(v),
-      rage: Math.min(1, Math.max(0, (v - HANDOFF_END) / 0.32)),
-      // texture must not rotate against the photo while both are visible
-      rotation: irisTexOk
-        ? Math.max(0, v - 0.56) * 0.5
-        : Math.max(0, v - HANDOFF_START) * 1.2,
-      pupilOffsetX: PUPIL_OFF_X * settle,
-      pupilOffsetY: PUPIL_OFF_Y * settle,
+  // Zoom needed until the pupil covers the whole viewport (diagonal), with
+  // some margin. Depends on the viewport, so computed client-side.
+  const [endScale, setEndScale] = React.useState(60);
+  React.useEffect(() => {
+    const compute = () => {
+      const vmin = Math.min(window.innerWidth, window.innerHeight);
+      const diag = Math.hypot(window.innerWidth, window.innerHeight);
+      const needed = (diag / (PUPIL_FRAC * vmin)) * 1.2;
+      setEndScale(Math.min(110, Math.max(45, needed)));
     };
-  });
+    compute();
+    window.addEventListener("resize", compute);
+    return () => window.removeEventListener("resize", compute);
+  }, []);
 
-  /* ---- head layer: glide onto the eye first, then pure zoom ---- */
+  /* ---------- the one continuous dive (photo path) ---------- */
+  // Zoom accelerates like a camera dolly — dense keyframes, no stages.
   const headScale = useTransform(
     scrollYProgress,
-    [0, 0.34, HANDOFF_END],
-    [1, 1.07, HEAD_SCALE_END]
+    [0, 0.12, 0.35, 0.55, 0.75, 0.92, 1],
+    [1, 1.05, 2.2, 5, 13, endScale, endScale * 1.18]
   );
-  // Translation completes BEFORE the crossfade window; from then on the
-  // eye point sits exactly at screen center (transform-origin holds it).
+  // Gentle drift that brings the pupil to screen center WHILE zooming —
+  // one camera move, not a pan-then-zoom.
   const headX = useTransform(
     scrollYProgress,
-    [0, 0.34, HANDOFF_START],
-    ["0%", "0%", `${50 - EYE_X}%`]
+    [0.12, 0.3, 0.5, 0.68],
+    ["0%", `${(50 - PUP_X) * 0.35}%`, `${(50 - PUP_X) * 0.8}%`, `${50 - PUP_X}%`]
   );
   const headY = useTransform(
     scrollYProgress,
-    [0, 0.34, HANDOFF_START],
-    ["0%", "0%", `${50 - EYE_Y}%`]
+    [0.12, 0.3, 0.5, 0.68],
+    ["0%", `${(50 - PUP_Y) * 0.35}%`, `${(50 - PUP_Y) * 0.8}%`, `${50 - PUP_Y}%`]
   );
-  const headOpacity = useTransform(scrollYProgress, [0.505, 0.55], [1, 0]);
+  // Depth-of-field as we plunge into the dark
+  const headBlur = useTransform(scrollYProgress, [0.78, 0.95], [0, 12]);
+  const headFilter = useMotionTemplate`blur(${headBlur}px)`;
 
-  /* ---- procedural eye: size-locked to the photo iris while fading in ---- */
-  const eyeOpacity = useTransform(scrollYProgress, [HANDOFF_START, 0.505], [0, 1]);
-  const eyeScale = useTransform(
-    scrollYProgress,
-    [HANDOFF_START, HANDOFF_END, 0.7, 0.95, 1],
-    [EYE_SCALE_AT_START, 1, 1.16, 3.4, 9]
-  );
-  // Without the head image the iris carries the whole gate from scroll 0.
+  // Soft blackness growing out of the pupil's center (hides the photo's
+  // inner-pupil reflections and the deep-zoom pixelation).
+  const veilR = useTransform(scrollYProgress, [0.74, 0.95], [0, 130]);
+  const veilBg = useMotionTemplate`radial-gradient(circle at 50% 50%, rgb(0 0 0) ${veilR}%, rgb(0 0 0 / 0) calc(${veilR}% + 28%))`;
+
+  /* ---------- type & HUD ---------- */
+  const titleOpacity = useTransform(scrollYProgress, [0.24, 0.38], [1, 0]);
+  const titleTrack = useTransform(scrollYProgress, [0, 0.38], ["0.45em", "0.12em"]);
+  const hintOpacity = useTransform(scrollYProgress, [0.45, 0.58], [1, 0]);
+  const stageOpacity = useTransform(scrollYProgress, [0.58, 0.68, 0.86, 0.94], [0, 1, 1, 0]);
+
+  const zoomReadout = useTransform(headScale, (s) => `${s.toFixed(1)}×`);
+  const fillReadout = useTransform(headScale, (s) => {
+    if (typeof window === "undefined") return "000";
+    const vmin = Math.min(window.innerWidth, window.innerHeight);
+    const diag = Math.hypot(window.innerWidth, window.innerHeight);
+    const frac = (PUPIL_FRAC * vmin * s) / diag;
+    return Math.min(100, Math.round(frac * 100)).toString().padStart(3, "0");
+  });
+  const depth = useTransform(scrollYProgress, (v) => (v * 420).toFixed(0));
+
+  /* ---------- procedural fallback (no photo available) ---------- */
+  const eyeParams = React.useRef<EyeParams>({ pupil: 0.28, rage: 0, rotation: 0 });
+  useMotionValueEvent(scrollYProgress, "change", (v) => {
+    if (headOk) return;
+    eyeParams.current = {
+      pupil: fallbackPupilAt(v),
+      rage: Math.min(1, Math.max(0, (v - 0.3) / 0.4)),
+      rotation: v * 0.9,
+    };
+  });
   const eyeSoloOpacity = useTransform(scrollYProgress, [0, 0.08], [0.4, 1]);
   const eyeSoloScale = useTransform(
     scrollYProgress,
-    [0, HANDOFF_END, 0.7, 0.95, 1],
-    [1, 1.05, 1.16, 3.4, 9]
+    [0, 0.55, 0.7, 0.95, 1],
+    [1, 1.08, 1.2, 3.6, 9]
   );
-
-  const veil = useTransform(scrollYProgress, [0.9, 0.99], [0, 1]);
-
-  /* ---- type layers ---- */
-  const titleOpacity = useTransform(scrollYProgress, [0.26, 0.4], [1, 0]);
-  const titleTrack = useTransform(scrollYProgress, [0, 0.4], ["0.45em", "0.12em"]);
-  const hintOpacity = useTransform(scrollYProgress, [0.5, 0.62], [1, 0]);
-  const stageOpacity = useTransform(scrollYProgress, [0.6, 0.7, 0.86, 0.94], [0, 1, 1, 0]);
-
-  // HUD readouts (live numbers, no re-renders)
-  const dilation = useTransform(scrollYProgress, (v) =>
-    ((irisTexOk ? pupilPhotoAt(v) : pupilAt(v)) * 100).toFixed(1).padStart(5, "0")
-  );
-  const focus = useTransform(scrollYProgress, (v) =>
-    Math.round(Math.min(1, Math.max(0, (v - HANDOFF_END) / 0.32)) * 100)
-      .toString()
-      .padStart(3, "0")
-  );
-  const depth = useTransform(scrollYProgress, (v) => (v * 420).toFixed(0));
-
-  // Micro-blink while the giant iris is on stage.
-  const [blinkKey, setBlinkKey] = React.useState(0);
-  React.useEffect(() => {
-    if (reduced) return;
-    const id = setInterval(() => {
-      const v = scrollYProgress.get();
-      const irisVisible = headOk ? v > 0.56 && v < 0.85 : v < 0.5;
-      if (irisVisible) setBlinkKey((k) => k + 1);
-    }, 6500);
-    return () => clearInterval(id);
-  }, [scrollYProgress, reduced, headOk]);
+  const soloVeil = useTransform(scrollYProgress, [0.88, 0.99], [0, 1]);
 
   return (
     <div ref={target} className="relative h-[420vh]" id="gate">
@@ -168,75 +125,57 @@ export function EagleGate() {
           }}
         />
 
-        {/* the head (act I) */}
-        {headOk && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ duration: 1.6, ease: "easeOut" }}
-            className="absolute inset-0 flex items-center justify-center"
-          >
-            <motion.img
-              src="/eagle-head.webp"
-              alt=""
-              style={{
-                scale: headScale,
-                x: headX,
-                y: headY,
-                opacity: headOpacity,
-                transformOrigin: `${EYE_X}% ${EYE_Y}%`,
-              }}
-              className="size-[100vmin] max-w-none object-cover [mask-image:radial-gradient(72%_72%_at_50%_50%,black_58%,transparent)]"
+        {headOk ? (
+          <>
+            {/* THE dive — a single transformed photo, nothing else */}
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ duration: 1.6, ease: "easeOut" }}
+              className="absolute inset-0 flex items-center justify-center"
+            >
+              <motion.img
+                src="/eagle-head.webp"
+                alt=""
+                style={{
+                  scale: headScale,
+                  x: headX,
+                  y: headY,
+                  filter: headFilter,
+                  transformOrigin: `${PUP_X}% ${PUP_Y}%`,
+                }}
+                className="size-[100vmin] max-w-none object-cover [mask-image:radial-gradient(72%_72%_at_50%_50%,black_58%,transparent)]"
+              />
+            </motion.div>
+
+            {/* blackness rising from inside the pupil */}
+            <motion.div
+              style={{ background: veilBg }}
+              className="pointer-events-none absolute inset-0"
             />
-          </motion.div>
+          </>
+        ) : (
+          <>
+            {/* fallback: procedural iris carries the gate */}
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ duration: 1.4, ease: "easeOut" }}
+              className="absolute inset-0"
+            >
+              <motion.div
+                style={{ scale: eyeSoloScale, opacity: eyeSoloOpacity }}
+                className="absolute left-1/2 top-1/2 aspect-square w-[88vmin] -translate-x-1/2 -translate-y-1/2"
+              >
+                <EagleEye paramsRef={eyeParams} className="block" />
+              </motion.div>
+            </motion.div>
+            <motion.div
+              style={{ opacity: soloVeil }}
+              className="pointer-events-none absolute inset-0 bg-black"
+            />
+          </>
         )}
-
-        {/* the giant iris (act II) */}
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ duration: 1.4, ease: "easeOut" }}
-          className="absolute inset-0"
-        >
-          <motion.div
-            style={
-              headOk
-                ? { scale: eyeScale, opacity: eyeOpacity }
-                : { scale: eyeSoloScale, opacity: eyeSoloOpacity }
-            }
-            className="absolute left-1/2 top-1/2 aspect-square w-[88vmin] -translate-x-1/2 -translate-y-1/2"
-          >
-            {irisTexOk ? (
-              <PhotoIris paramsRef={eyeParams} className="block" />
-            ) : (
-              <EagleEye paramsRef={eyeParams} className="block" />
-            )}
-
-            {/* lids (micro-blink) */}
-            {!reduced && blinkKey > 0 && (
-              <React.Fragment key={blinkKey}>
-                <motion.div
-                  initial={{ y: "-100%" }}
-                  animate={{ y: ["-100%", "-12%", "-100%"] }}
-                  transition={{ duration: 0.4, times: [0, 0.5, 1], ease: "easeInOut" }}
-                  className="absolute inset-x-[-10%] top-[-10%] h-[62%] rounded-[50%] bg-black"
-                />
-                <motion.div
-                  initial={{ y: "100%" }}
-                  animate={{ y: ["100%", "12%", "100%"] }}
-                  transition={{ duration: 0.4, times: [0, 0.5, 1], ease: "easeInOut" }}
-                  className="absolute inset-x-[-10%] bottom-[-10%] h-[62%] rounded-[50%] bg-black"
-                />
-              </React.Fragment>
-            )}
-          </motion.div>
-        </motion.div>
-
-        {/* darkness rising inside the dilated pupil */}
-        <motion.div
-          style={{ opacity: veil }}
-          className="pointer-events-none absolute inset-0 bg-black"
-        />
 
         {/* ---- type & HUD ---- */}
         <MountFade delay={0.5} className="absolute inset-x-0 top-[10%]">
@@ -278,15 +217,15 @@ export function EagleGate() {
             className="flex flex-col gap-5 font-mono text-[10px] tracking-widest text-muted"
           >
             <div>
-              <div className="text-gold/70">PUPIL</div>
+              <div className="text-gold/70">ZOOM</div>
               <div className="text-fg tabular-nums">
-                <motion.span>{dilation}</motion.span> %
+                <motion.span>{zoomReadout}</motion.span>
               </div>
             </div>
             <div>
-              <div className="text-gold/70">FOCUS</div>
+              <div className="text-gold/70">PUPIL FILL</div>
               <div className="text-fg tabular-nums">
-                <motion.span>{focus}</motion.span> / 100
+                <motion.span>{fillReadout}</motion.span> %
               </div>
             </div>
             <div>
@@ -337,28 +276,14 @@ function easeInOut(t: number) {
   return t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
 }
 
-/**
- * Pupil curve for the PROCEDURAL iris: photo ratio through the handoff,
- * pin-focus after takeover, then dilation into the portal.
- */
-function pupilAt(v: number): number {
-  if (v < HANDOFF_END) return PHOTO_PUPIL;
-  if (v < 0.66) {
-    const t = (v - HANDOFF_END) / (0.66 - HANDOFF_END);
-    return PHOTO_PUPIL - (PHOTO_PUPIL - 0.12) * easeInOut(t);
+/** Fallback pupil curve (procedural iris only): rest → pin → dilation. */
+function fallbackPupilAt(v: number): number {
+  if (v < 0.3) return 0.28;
+  if (v < 0.55) {
+    const t = (v - 0.3) / 0.25;
+    return 0.28 - 0.16 * easeInOut(t);
   }
-  if (v < 0.7) return 0.12;
-  const t = Math.min(1, (v - 0.7) / 0.25);
+  if (v < 0.62) return 0.12;
+  const t = Math.min(1, (v - 0.62) / 0.3);
   return 0.12 + 0.88 * easeInOut(t);
-}
-
-/**
- * Pupil curve for the REAL-TEXTURE iris: the baked-in photo pupil sets the
- * floor (we can never shrink below it), so instead of a pin-focus the eye
- * holds the photo ratio, breathes down a touch, then dilates fully.
- */
-function pupilPhotoAt(v: number): number {
-  if (v < 0.58) return PHOTO_PUPIL;
-  const t = Math.min(1, (v - 0.58) / 0.37);
-  return PHOTO_PUPIL + (1 - PHOTO_PUPIL) * easeInOut(t);
 }
