@@ -9,7 +9,7 @@ import {
   useInView,
 } from "motion/react";
 
-import { SectionKicker } from "./nq-terminal";
+import { SectionKicker } from "./section-kicker";
 import { useImageAvailable } from "@/lib/use-image";
 
 /**
@@ -312,15 +312,30 @@ function ApexCard({ animal, index }: { animal: Animal; index: number }) {
           }}
         />
 
-        {/* artwork: photoreal slot with procedural fallback */}
+        {/* artwork: real wildlife photo (duotone → wakes to color on hover),
+            procedural canvas as fallback while/if the photo is missing */}
         <div className="relative aspect-[4/3] overflow-hidden border-b border-line bg-black/50">
           {imgOk ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
-              src={`/apex/${animal.id}.webp`}
-              alt={animal.name}
-              className="size-full object-cover transition-transform duration-700 group-hover:scale-[1.05]"
-            />
+            <>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={`/apex/${animal.id}.webp`}
+                alt={animal.name}
+                className="size-full object-cover grayscale contrast-[1.12] brightness-[0.82] transition-all duration-700 ease-out group-hover:scale-[1.06] group-hover:grayscale-0 group-hover:brightness-100"
+              />
+              {/* accent duotone wash, lifts on hover */}
+              <div
+                className="pointer-events-none absolute inset-0 mix-blend-color transition-opacity duration-700 group-hover:opacity-0"
+                style={{ backgroundColor: animal.accentVar, opacity: 0.55 }}
+              />
+              <div
+                className="pointer-events-none absolute inset-0 transition-opacity duration-700 group-hover:opacity-40"
+                style={{
+                  background:
+                    "linear-gradient(to top, oklch(0.09 0.01 260) 0%, transparent 45%), radial-gradient(90% 70% at 50% 30%, transparent 55%, rgba(0,0,0,0.55))",
+                }}
+              />
+            </>
           ) : (
             <ApexCanvas draw={animal.draw} />
           )}
@@ -367,7 +382,7 @@ export function ApexGrid() {
   return (
     <section id="apex" className="relative px-4 py-24 sm:px-8">
       <div className="mx-auto max-w-6xl">
-        <SectionKicker index="02" title="THE TRINITY" accent="text-gold" />
+        <SectionKicker index="01" title="THE TRINITY" accent="text-gold" />
         <h2 className="mt-3 font-display text-4xl font-bold uppercase leading-none sm:text-6xl">
           APEX <span className="text-outline">SPIRITS</span>
         </h2>

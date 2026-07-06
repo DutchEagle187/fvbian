@@ -1,7 +1,7 @@
 import { EagleGate } from "@/components/gate/eagle-gate";
 import { Marquee } from "@/components/fx/marquee";
+import { TapeStrip } from "@/components/fx/tape-strip";
 import { Manifest } from "@/components/sections/manifest";
-import { NqTerminal } from "@/components/sections/nq-terminal";
 import { ApexGrid } from "@/components/sections/apex-grid";
 import { SiteFooter } from "@/components/sections/site-footer";
 
@@ -15,18 +15,10 @@ export default function Home() {
       <div className="relative bg-bg-deep">
         <Manifest />
 
-        <Marquee
-          items={[
-            "NQ FUTURES",
-            "VISION 8×",
-            "0–100 IN 3.0s",
-            "RING-TAILED CHAOS",
-            "GLOBEX NEVER SLEEPS",
-            "APEX PLAYGROUND",
-          ]}
-        />
+        {/* the NQ tape as a living divider */}
+        <TapeStrip />
 
-        <NqTerminal />
+        <ApexGrid />
 
         <Marquee
           items={[
@@ -35,12 +27,11 @@ export default function Home() {
             "LEMUR CATTA",
             "SEE FIRST",
             "STRIKE ONCE",
+            "GLOBEX NEVER SLEEPS",
           ]}
           duration="42s"
           separator="✦"
         />
-
-        <ApexGrid />
 
         <SiteFooter />
       </div>
