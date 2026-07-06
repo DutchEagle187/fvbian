@@ -11,6 +11,7 @@ import {
 } from "motion/react";
 
 import { EagleEye, type EyeParams } from "./eagle-eye";
+import { PupilBurst } from "./pupil-burst";
 import { useImageAvailable } from "@/lib/use-image";
 
 /**
@@ -153,6 +154,9 @@ export function EagleGate() {
               style={{ background: veilBg }}
               className="pointer-events-none absolute inset-0"
             />
+
+            {/* gold-dust breakthrough at 80–100% zoom */}
+            <PupilBurst progress={scrollYProgress} />
           </>
         ) : (
           <>
