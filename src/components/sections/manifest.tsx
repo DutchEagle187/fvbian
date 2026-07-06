@@ -52,7 +52,7 @@ export function Manifest() {
         >
           fvbian.com ist eine Spielwiese für modernes Web — Shader, Canvas,
           Scroll-Choreografie und 3D. Gebaut um drei Geister: den Adler, den
-          Gepard, den Lemur. Und um einen Chart, der niemals schläft.
+          Gepard, den Lemur.
         </motion.p>
       </div>
     </section>

@@ -27,8 +27,8 @@ export function SiteFooter() {
         </ShimmerButton>
 
         <p className="max-w-md font-mono text-[10px] leading-relaxed tracking-wider text-muted">
-          NQ-Feed simuliert — keine Finanzdaten, keine Anlageberatung. Gebaut
-          mit Next.js, Motion, Canvas & WebGL. © {new Date().getFullYear()}
+          Gebaut mit Next.js, Motion, Canvas & WebGL. ©{" "}
+          {new Date().getFullYear()}
         </p>
 
         <p className="max-w-xl font-mono text-[9px] leading-relaxed text-muted/70">

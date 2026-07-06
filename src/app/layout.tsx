@@ -15,7 +15,7 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "FVBIAN — Apex Playground",
   description:
-    "A modern web playground. Vision of an eagle, speed of a cheetah, instinct of a lemur — and the NQ tape.",
+    "A modern web playground. Vision of an eagle, speed of a cheetah, instinct of a lemur.",
   metadataBase: new URL("https://fvbian.com"),
 };
 

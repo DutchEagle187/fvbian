@@ -1,9 +1,8 @@
 # fvbian — Apex Playground
 
 Spielwiese für modernes Webdev auf [fvbian.com](https://fvbian.com).
-Ein Scroll-Erlebnis durch das Auge eines Adlers — dahinter: NQ-Futures-Tape,
-Apex-Trilogie (Adler · Gepard · Lemur), Shader, Canvas-Art und
-Scroll-Choreografie.
+Ein Scroll-Erlebnis durch das Auge eines Adlers — dahinter die Apex-Trilogie
+(Adler · Gepard · Lemur), Shader, Canvas-Art und Scroll-Choreografie.
 
 ## Stack
 
@@ -11,8 +10,8 @@ Scroll-Choreografie.
 - **Motion** (motion.dev) — Scroll-Choreografie, Springs, InView
 - **Tailwind CSS v4** + Magic-UI-Komponenten (AuroraText, ShimmerButton, …)
 - **Raw WebGL** Fragment-Shader (fbm-Noise-Aurora, keine three.js-Dependency)
-- **Canvas 2D** — prozedurales Adlerauge (~750 Iris-Fasern), Candlestick-Sim,
-  Radar/Speed/Leap-Artworks
+- **Canvas 2D** — prozedurales Adlerauge (~750 Iris-Fasern),
+  Radar/Speed/Leap-Fallback-Artworks
 
 ## Struktur
 
@@ -21,7 +20,7 @@ src/
   app/                      # Layout (dark only) + Page-Komposition
   components/
     gate/                   # EagleGate (420vh Scroll-Journey) + EagleEye-Canvas
-    sections/               # Manifest, NQ-Terminal, ApexGrid, Footer
+    sections/               # Manifest, ApexGrid, Footer
     fx/                     # ShaderVeil (WebGL), Marquee
     magicui/                # Magic-UI-Ports
 ```
@@ -52,5 +51,4 @@ npm install
 npm run dev        # http://localhost:3000
 ```
 
-Deploy: Vercel, keine Environment-Variablen nötig. Der NQ-Feed ist eine
-Simulation (Momentum + Volatilitäts-Cluster) — keine echten Marktdaten.
+Deploy: Vercel, keine Environment-Variablen nötig.
