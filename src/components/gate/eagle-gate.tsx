@@ -10,6 +10,7 @@ import {
 } from "motion/react";
 
 import { EagleEye, type EyeParams } from "./eagle-eye";
+import { PhotoIris } from "./photo-iris";
 import { useImageAvailable } from "@/lib/use-image";
 
 /**
@@ -47,7 +48,7 @@ const HANDOFF_END = 0.54;
 const HEAD_SCALE_END = 0.8096 / IRIS_FRAC; // canvas iris == photo iris at end
 const EYE_SCALE_AT_START =
   (1.07 + (HEAD_SCALE_END - 1.07) * 0.6) * (IRIS_FRAC / 0.8096); // ≈0.649
-const PHOTO_PUPIL = 0.39;
+const PHOTO_PUPIL = 0.41;
 // photo pupil sits slightly off the iris center (in units of iris radius)
 const PUPIL_OFF_X = 0.12;
 const PUPIL_OFF_Y = -0.1;
@@ -61,6 +62,9 @@ export function EagleGate() {
   });
 
   const headOk = useImageAvailable("/eagle-head.webp");
+  // Real-iris texture (extracted from the photo) — preferred over the
+  // procedural iris because the crossfade becomes texture-identical.
+  const irisTexOk = useImageAvailable("/iris-macro.webp");
 
   // Eye canvas params (mutated per scroll frame, zero re-renders).
   const eyeParams = React.useRef<EyeParams>({
@@ -75,9 +79,12 @@ export function EagleGate() {
     // pupil offset matches the photo through the handoff, then re-centers
     const settle = 1 - Math.min(1, Math.max(0, (v - HANDOFF_END) / 0.12));
     eyeParams.current = {
-      pupil: pupilAt(v),
+      pupil: irisTexOk ? pupilPhotoAt(v) : pupilAt(v),
       rage: Math.min(1, Math.max(0, (v - HANDOFF_END) / 0.32)),
-      rotation: Math.max(0, v - HANDOFF_START) * 1.2,
+      // texture must not rotate against the photo while both are visible
+      rotation: irisTexOk
+        ? Math.max(0, v - 0.56) * 0.5
+        : Math.max(0, v - HANDOFF_START) * 1.2,
       pupilOffsetX: PUPIL_OFF_X * settle,
       pupilOffsetY: PUPIL_OFF_Y * settle,
     };
@@ -128,7 +135,7 @@ export function EagleGate() {
 
   // HUD readouts (live numbers, no re-renders)
   const dilation = useTransform(scrollYProgress, (v) =>
-    (pupilAt(v) * 100).toFixed(1).padStart(5, "0")
+    ((irisTexOk ? pupilPhotoAt(v) : pupilAt(v)) * 100).toFixed(1).padStart(5, "0")
   );
   const focus = useTransform(scrollYProgress, (v) =>
     Math.round(Math.min(1, Math.max(0, (v - HANDOFF_END) / 0.32)) * 100)
@@ -199,7 +206,11 @@ export function EagleGate() {
             }
             className="absolute left-1/2 top-1/2 aspect-square w-[88vmin] -translate-x-1/2 -translate-y-1/2"
           >
-            <EagleEye paramsRef={eyeParams} className="block" />
+            {irisTexOk ? (
+              <PhotoIris paramsRef={eyeParams} className="block" />
+            ) : (
+              <EagleEye paramsRef={eyeParams} className="block" />
+            )}
 
             {/* lids (micro-blink) */}
             {!reduced && blinkKey > 0 && (
@@ -327,9 +338,8 @@ function easeInOut(t: number) {
 }
 
 /**
- * Pupil radius over scroll. Holds the photo's measured pupil ratio through
- * the entire handoff (so the crossfade is seamless), focuses to a pin only
- * AFTER the takeover, then dilates into the portal.
+ * Pupil curve for the PROCEDURAL iris: photo ratio through the handoff,
+ * pin-focus after takeover, then dilation into the portal.
  */
 function pupilAt(v: number): number {
   if (v < HANDOFF_END) return PHOTO_PUPIL;
@@ -340,4 +350,15 @@ function pupilAt(v: number): number {
   if (v < 0.7) return 0.12;
   const t = Math.min(1, (v - 0.7) / 0.25);
   return 0.12 + 0.88 * easeInOut(t);
+}
+
+/**
+ * Pupil curve for the REAL-TEXTURE iris: the baked-in photo pupil sets the
+ * floor (we can never shrink below it), so instead of a pin-focus the eye
+ * holds the photo ratio, breathes down a touch, then dilates fully.
+ */
+function pupilPhotoAt(v: number): number {
+  if (v < 0.58) return PHOTO_PUPIL;
+  const t = Math.min(1, (v - 0.58) / 0.37);
+  return PHOTO_PUPIL + (1 - PHOTO_PUPIL) * easeInOut(t);
 }
