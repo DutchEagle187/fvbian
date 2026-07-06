@@ -19,6 +19,9 @@ export interface EyeParams {
   rage: number;
   /** radians — slow fiber rotation bound to scroll */
   rotation: number;
+  /** pupil offset from iris center, in units of iris radius (photo match) */
+  pupilOffsetX?: number;
+  pupilOffsetY?: number;
 }
 
 interface EagleEyeProps {
@@ -116,7 +119,13 @@ export function EagleEye({ paramsRef, className }: EagleEyeProps) {
     canvas.height = SIZE * dpr;
 
     const draw = () => {
-      const { pupil: p, rage: rg, rotation: rot } = paramsRef.current;
+      const {
+        pupil: p,
+        rage: rg,
+        rotation: rot,
+        pupilOffsetX = 0,
+        pupilOffsetY = 0,
+      } = paramsRef.current;
       const l = last.current;
       // Skip redraws when nothing moved (idle frames are free).
       if (
@@ -132,6 +141,9 @@ export function EagleEye({ paramsRef, className }: EagleEyeProps) {
       const c = SIZE / 2;
       const irisR = SIZE * 0.46;
       const pupilR = irisR * lerp(0.2, 0.98, p);
+      // photo-matched pupil offset (fades to 0 after the handoff)
+      const pcx = c + pupilOffsetX * irisR;
+      const pcy = c + pupilOffsetY * irisR;
 
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
       ctx.clearRect(0, 0, SIZE, SIZE);
@@ -192,13 +204,13 @@ export function EagleEye({ paramsRef, className }: EagleEyeProps) {
 
       // ---- collarette (dark lace ring hugging the pupil)
       const colR = pupilR + band * 0.14;
-      const col = ctx.createRadialGradient(c, c, pupilR, c, c, colR + band * 0.1);
+      const col = ctx.createRadialGradient(pcx, pcy, pupilR, pcx, pcy, colR + band * 0.1);
       col.addColorStop(0, "rgba(20,10,2,0.55)");
       col.addColorStop(0.6, "rgba(30,14,3,0.25)");
       col.addColorStop(1, "rgba(0,0,0,0)");
       ctx.fillStyle = col;
       ctx.beginPath();
-      ctx.arc(c, c, colR + band * 0.12, 0, Math.PI * 2);
+      ctx.arc(pcx, pcy, colR + band * 0.12, 0, Math.PI * 2);
       ctx.fill();
 
       // ---- limbal ring (dark outer edge)
@@ -212,13 +224,20 @@ export function EagleEye({ paramsRef, className }: EagleEyeProps) {
       ctx.fill();
 
       // ---- pupil
-      const pup = ctx.createRadialGradient(c, c, pupilR * 0.75, c, c, pupilR * 1.06);
+      const pup = ctx.createRadialGradient(
+        pcx,
+        pcy,
+        pupilR * 0.75,
+        pcx,
+        pcy,
+        pupilR * 1.06
+      );
       pup.addColorStop(0, "rgb(2,1,0)");
       pup.addColorStop(0.92, "rgb(4,2,1)");
       pup.addColorStop(1, "rgba(10,4,0,0)");
       ctx.fillStyle = pup;
       ctx.beginPath();
-      ctx.arc(c, c, pupilR * 1.06, 0, Math.PI * 2);
+      ctx.arc(pcx, pcy, pupilR * 1.06, 0, Math.PI * 2);
       ctx.fill();
 
       // ---- specular highlights
