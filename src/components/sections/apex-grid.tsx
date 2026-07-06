@@ -28,12 +28,9 @@ type DrawFn = (
 
 interface Animal {
   id: "eagle" | "cheetah" | "lemur";
-  name: string;
-  latin: string;
+  name: string; // alt text only
   role: string;
   accentVar: string;
-  stats: [string, string][];
-  blurb: string;
   draw: DrawFn;
 }
 
@@ -191,47 +188,23 @@ const drawLemur: DrawFn = (ctx, W, H, t) => {
 const ANIMALS: Animal[] = [
   {
     id: "eagle",
-    name: "ADLER",
-    latin: "Aquila chrysaetos",
+    name: "Adler",
     role: "VISION",
     accentVar: "var(--gold)",
-    stats: [
-      ["Sehschärfe", "8× Mensch"],
-      ["Sturzflug", "320 km/h"],
-      ["Spannweite", "2.3 m"],
-    ],
-    blurb:
-      "Sieht die Beute aus drei Kilometern. Wartet. Und trifft dann eine einzige, perfekte Entscheidung.",
     draw: drawEagle,
   },
   {
     id: "cheetah",
-    name: "GEPARD",
-    latin: "Acinonyx jubatus",
+    name: "Gepard",
     role: "SPEED",
     accentVar: "var(--speed)",
-    stats: [
-      ["0–100 km/h", "3.0 s"],
-      ["Topspeed", "120 km/h"],
-      ["Schrittlänge", "7 m"],
-    ],
-    blurb:
-      "Explosive Beschleunigung, volle Kontrolle. Der schnellste Sprinter des Planeten — Execution in Reinform.",
     draw: drawCheetah,
   },
   {
     id: "lemur",
-    name: "LEMUR",
-    latin: "Lemur catta",
+    name: "Lemur",
     role: "INSTINCT",
     accentVar: "var(--lemur)",
-    stats: [
-      ["Sprungweite", "10 m"],
-      ["Truppstärke", "bis 30"],
-      ["Sonnenbad", "täglich"],
-    ],
-    blurb:
-      "Spielerisch, sozial, unberechenbar agil. Bewegt sich durchs Chaos, als wäre es choreografiert.",
     draw: drawLemur,
   },
 ];
@@ -314,7 +287,7 @@ function ApexCard({ animal, index }: { animal: Animal; index: number }) {
 
         {/* artwork: generated apex portrait (Higgsfield), staring straight
             at the visitor — procedural canvas as fallback if missing */}
-        <div className="relative aspect-[3/4] overflow-hidden border-b border-line bg-black/50">
+        <div className="relative aspect-[3/4] overflow-hidden bg-black/50">
           {imgOk ? (
             <>
               {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -328,46 +301,25 @@ function ApexCard({ animal, index }: { animal: Animal; index: number }) {
                 className="pointer-events-none absolute inset-0"
                 style={{
                   background:
-                    "linear-gradient(to top, oklch(0.09 0.01 260) 0%, transparent 30%), radial-gradient(120% 90% at 50% 40%, transparent 60%, rgba(0,0,0,0.5))",
+                    "linear-gradient(to top, rgba(0,0,0,0.85) 0%, transparent 34%), radial-gradient(120% 90% at 50% 40%, transparent 60%, rgba(0,0,0,0.5))",
                 }}
               />
             </>
           ) : (
             <ApexCanvas draw={animal.draw} />
           )}
+
+          {/* the single word */}
           <span
-            className="absolute left-4 top-4 font-mono text-[10px] tracking-[0.4em]"
-            style={{ color: animal.accentVar }}
+            className="absolute inset-x-0 bottom-5 text-center font-display text-3xl font-bold uppercase tracking-[0.3em] sm:bottom-6 sm:text-4xl"
+            style={{
+              color: animal.accentVar,
+              textShadow: `0 0 24px color-mix(in oklab, ${animal.accentVar} 65%, transparent)`,
+              transform: "translateZ(35px)",
+            }}
           >
             {animal.role}
           </span>
-          <span className="absolute right-4 top-4 font-mono text-[10px] tracking-widest text-muted">
-            0{index + 1}
-          </span>
-        </div>
-
-        <div className="p-6" style={{ transform: "translateZ(30px)" }}>
-          <h3 className="font-display text-3xl font-bold">{animal.name}</h3>
-          <p className="mt-0.5 font-mono text-[11px] italic tracking-wider text-muted">
-            {animal.latin}
-          </p>
-          <p className="mt-4 text-sm leading-relaxed text-muted">{animal.blurb}</p>
-
-          <dl className="mt-5 grid grid-cols-3 gap-2 border-t border-line pt-4">
-            {animal.stats.map(([k, v]) => (
-              <div key={k}>
-                <dt className="font-mono text-[9px] uppercase tracking-[0.2em] text-muted">
-                  {k}
-                </dt>
-                <dd
-                  className="mt-1 font-mono text-sm font-bold tabular-nums"
-                  style={{ color: animal.accentVar }}
-                >
-                  {v}
-                </dd>
-              </div>
-            ))}
-          </dl>
         </div>
       </motion.article>
     </motion.div>
