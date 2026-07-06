@@ -2,7 +2,6 @@ import { EagleGate } from "@/components/gate/eagle-gate";
 import { Marquee } from "@/components/fx/marquee";
 import { ScrollProgress } from "@/components/fx/scroll-progress";
 import { Manifest } from "@/components/sections/manifest";
-import { HuntSwarm } from "@/components/sections/hunt-swarm";
 import { ApexGrid } from "@/components/sections/apex-grid";
 import { Velocity } from "@/components/sections/velocity";
 import { SiteFooter } from "@/components/sections/site-footer";
@@ -18,8 +17,6 @@ export default function Home() {
       {/* the site behind the pupil */}
       <div className="relative bg-bg-deep">
         <Manifest />
-
-        <HuntSwarm />
 
         <Marquee
           items={[

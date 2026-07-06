@@ -101,7 +101,7 @@ export function Velocity() {
     <section id="velocity" className="bg-grid relative px-4 py-24 [background-size:56px_56px] sm:px-8">
       <div className="absolute inset-0 bg-gradient-to-b from-bg-deep via-transparent to-bg-deep" />
       <div className="relative mx-auto max-w-6xl">
-        <SectionKicker index="03" title="APEX METRICS" accent="text-ember" />
+        <SectionKicker index="02" title="APEX METRICS" accent="text-ember" />
         <h2 className="mt-3 font-display text-4xl font-bold uppercase leading-none sm:text-6xl">
           RAW <span className="text-outline">VELOCITY</span>
         </h2>

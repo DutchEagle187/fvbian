@@ -330,7 +330,7 @@ export function ApexGrid() {
   return (
     <section id="apex" className="relative px-4 py-24 sm:px-8">
       <div className="mx-auto max-w-6xl">
-        <SectionKicker index="02" title="THE TRINITY" accent="text-gold" />
+        <SectionKicker index="01" title="THE TRINITY" accent="text-gold" />
         <h2 className="mt-3 font-display text-4xl font-bold uppercase leading-none sm:text-6xl">
           APEX <span className="text-outline">SPIRITS</span>
         </h2>
