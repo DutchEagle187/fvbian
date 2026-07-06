@@ -1,14 +1,26 @@
 "use client";
 
-import { motion } from "motion/react";
+import * as React from "react";
+import { motion, useScroll, useTransform } from "motion/react";
 
 import { AuroraText } from "@/components/magicui/aurora-text";
 import { ShaderVeil } from "@/components/fx/shader-veil";
+import { GoldDust } from "@/components/fx/gold-dust";
 
 /** First breath after diving through the pupil. */
 export function Manifest() {
+  const ref = React.useRef<HTMLElement>(null);
+  const { scrollYProgress } = useScroll({
+    target: ref,
+    offset: ["start end", "end start"],
+  });
+  const headlineY = useTransform(scrollYProgress, [0, 1], [70, -70]);
+
   return (
-    <section className="grain relative flex min-h-[90svh] items-center overflow-hidden px-4 sm:px-8">
+    <section
+      ref={ref}
+      className="grain relative flex min-h-[90svh] items-center overflow-hidden px-4 sm:px-8"
+    >
       <div className="absolute inset-0 opacity-70">
         <ShaderVeil
           colorA={[0.5, 0.28, 0.04]}
@@ -17,8 +29,9 @@ export function Manifest() {
         />
       </div>
       <div className="bg-grid absolute inset-0 opacity-40 [mask-image:radial-gradient(70%_60%_at_50%_50%,black,transparent)]" />
+      <GoldDust />
 
-      <div className="relative mx-auto max-w-6xl py-32">
+      <motion.div style={{ y: headlineY }} className="relative mx-auto max-w-6xl py-32">
         <motion.p
           initial={{ opacity: 0 }}
           whileInView={{ opacity: 1 }}
@@ -54,7 +67,7 @@ export function Manifest() {
           Scroll-Choreografie und 3D. Gebaut um drei Geister: den Adler, den
           Gepard, den Lemur.
         </motion.p>
-      </div>
+      </motion.div>
     </section>
   );
 }
